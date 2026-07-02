@@ -16,7 +16,8 @@ import {
 } from "livekit-client";
 
 const defaultLiveKitPublishOptions: TrackPublishDefaults = {
-  audioPreset: AudioPresets.music,
+  // SPIKE(項目2): 音声ビットレート上書きテスト。既定 AudioPresets.music からカスタム値へ
+  audioPreset: { maxBitrate: 128_000 },
   dtx: true,
   // disable red because the livekit server strips out red packets for clients
   // that don't support it (firefox) but of course that doesn't work with e2ee.
@@ -24,7 +25,9 @@ const defaultLiveKitPublishOptions: TrackPublishDefaults = {
   forceStereo: false,
   simulcast: true,
   videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360] as VideoPreset[],
-  screenShareEncoding: ScreenSharePresets.h1080fps30.encoding,
+  // SPIKE(項目2): 画面共有パラメータ上書きテスト。既定 ScreenSharePresets.h1080fps30.encoding
+  // (maxBitrate 3Mbps / maxFramerate 30) からカスタム値へ。webrtc-internals で fps≈5 を確認する
+  screenShareEncoding: { maxBitrate: 800_000, maxFramerate: 5 },
   stopMicTrackOnMute: false,
   videoCodec: "vp8",
   videoEncoding: VideoPresets.h720.encoding,
