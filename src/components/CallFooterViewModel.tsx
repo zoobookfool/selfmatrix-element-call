@@ -146,7 +146,7 @@ export function createCallFooterViewModel(
   mediaDevices: MediaDevices,
   reactionIdentifier: string | undefined,
 ): ViewModel<FooterSnapshot> {
-  const { showControls, header: headerStyle } = getUrlParams();
+  const { showControls, header: headerStyle, hideVideoButton } = getUrlParams();
   const showLogo = headerStyle === HeaderStyle.Standard;
 
   const isPip$ = scope.behavior(
@@ -161,6 +161,7 @@ export function createCallFooterViewModel(
     // candidat to move into the FooterViewModel
     showFooter$: callModel.showFooter$,
     hideControls$: constant(!showControls),
+    hideVideoButton$: constant(hideVideoButton),
     asOverlay$: callModel.edgeToEdge$,
     buttonSize$: scope.behavior(
       isPip$.pipe(map<boolean, "md" | "lg">((pip) => (pip ? "md" : "lg"))),
@@ -247,6 +248,7 @@ export function createLobbyFooterViewModel(
       // be correcty matching the snapshot type.
       showLogo,
       hideControls: false,
+      hideVideoButton: false,
       asOverlay: false,
       buttonSize: "lg",
       showLayoutSwitcher: false,

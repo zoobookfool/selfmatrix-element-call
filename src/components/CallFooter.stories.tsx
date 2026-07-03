@@ -94,6 +94,7 @@ export const Default: Story = {
     buttonSize: "lg",
     showFooter: true,
     hideControls: false,
+    hideVideoButton: false,
     asOverlay: false,
     sharingScreen: false,
     audioOutputSwitcher: undefined,

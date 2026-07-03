@@ -87,6 +87,10 @@ export interface FooterState {
   buttonSize: "md" | "lg";
   showLogo: boolean;
 
+  /** Whether to hide the video mute button from the footer. Does not
+   * disable video functionality, it only hides the button. */
+  hideVideoButton: boolean;
+
   layoutMode: GridMode | undefined;
 
   sharingScreen: boolean;
@@ -120,6 +124,7 @@ export const CallFooter: FC<FooterProps> = ({ ref, children, vm }) => {
   const asOverlay = useBehavior(vm.asOverlay$);
   const showFooter = useBehavior(vm.showFooter$);
   const hideControls = useBehavior(vm.hideControls$);
+  const hideVideoButton = useBehavior(vm.hideVideoButton$);
   const layoutMode = useBehavior(vm.layoutMode$);
   const setLayoutMode = useBehavior(vm.setLayoutMode$);
   const openSettings = useBehavior(vm.openSettings$);
@@ -193,34 +198,36 @@ export const CallFooter: FC<FooterProps> = ({ ref, children, vm }) => {
     );
   }
 
-  if ((videoOptions?.length ?? 0) > 0) {
-    buttons.push(
-      <MediaMuteAndSwitchButton
-        title={"Camera Source"}
-        key="video"
-        iconsAndLabels="video"
-        enabled={videoEnabled ?? false}
-        busy={videoBusy ?? false}
-        onMuteClick={toggleVideo}
-        options={videoOptions}
-        selectedOption={selectedVideo}
-        onSelect={selectVideoButtonOption}
-        videoBlurToggleClick={toggleBlur}
-        videoBlurEnabled={videoBlurEnabled}
-      />,
-    );
-  } else {
-    buttons.push(
-      <VideoButton
-        size={buttonSize}
-        key="video"
-        enabled={videoEnabled ?? false}
-        busy={videoBusy ?? false}
-        onClick={toggleVideo}
-        disabled={(videoBusy ?? false) || toggleVideo === undefined}
-        data-testid="incall_videomute"
-      />,
-    );
+  if (!hideVideoButton) {
+    if ((videoOptions?.length ?? 0) > 0) {
+      buttons.push(
+        <MediaMuteAndSwitchButton
+          title={"Camera Source"}
+          key="video"
+          iconsAndLabels="video"
+          enabled={videoEnabled ?? false}
+          busy={videoBusy ?? false}
+          onMuteClick={toggleVideo}
+          options={videoOptions}
+          selectedOption={selectedVideo}
+          onSelect={selectVideoButtonOption}
+          videoBlurToggleClick={toggleBlur}
+          videoBlurEnabled={videoBlurEnabled}
+        />,
+      );
+    } else {
+      buttons.push(
+        <VideoButton
+          size={buttonSize}
+          key="video"
+          enabled={videoEnabled ?? false}
+          busy={videoBusy ?? false}
+          onClick={toggleVideo}
+          disabled={(videoBusy ?? false) || toggleVideo === undefined}
+          data-testid="incall_videomute"
+        />,
+      );
+    }
   }
 
   if (toggleScreenSharing !== undefined) {

@@ -181,6 +181,12 @@ export interface UrlConfiguration {
   hideScreensharing: boolean;
 
   /**
+   * Whether to hide the video mute button from the footer. This does not
+   * disable the video functionality itself, it only hides the button.
+   */
+  hideVideoButton: boolean;
+
+  /**
    * Whether the app is allowed to use fallback STUN servers for ICE in case the
    * user's homeserver doesn't provide any.
    */
@@ -369,6 +375,7 @@ export const computeUrlParams = (search = "", hash = ""): UrlParams => {
     header: platform === "desktop" ? HeaderStyle.None : HeaderStyle.AppBar,
     showControls: true,
     hideScreensharing: false,
+    hideVideoButton: false,
     allowIceFallback: true,
     perParticipantE2EE: true,
     controlledAudioDevices: platform === "desktop" ? false : true,
@@ -424,6 +431,7 @@ export const computeUrlParams = (search = "", hash = ""): UrlParams => {
         header: HeaderStyle.Standard,
         showControls: true,
         hideScreensharing: false,
+        hideVideoButton: false,
         allowIceFallback: false,
         perParticipantE2EE: false,
         controlledAudioDevices: false,
@@ -470,6 +478,7 @@ export const computeUrlParams = (search = "", hash = ""): UrlParams => {
     header: parser.getEnumParam("header", HeaderStyle),
     showControls: parser.getFlag("showControls"),
     hideScreensharing: parser.getFlag("hideScreensharing"),
+    hideVideoButton: parser.getFlag("hideVideoButton"),
     allowIceFallback: parser.getFlag("allowIceFallback"),
     perParticipantE2EE: parser.getFlag("perParticipantE2EE"),
     controlledAudioDevices: parser.getFlag("controlledAudioDevices"),
