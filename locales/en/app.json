@@ -255,8 +255,11 @@
     "muted_for_me": "Muted for me",
     "pin": "Pin to spotlight",
     "screen_share_volume": "Screen share volume",
+    "stop_watching": "Stop watching",
     "unpin": "Unpin from spotlight",
     "volume": "Volume",
-    "waiting_for_media": "Waiting for media..."
+    "waiting_for_media": "Waiting for media...",
+    "watch_stream": "Watch stream",
+    "watch_stream_prompt": "{{displayName}} is sharing their screen"
   }
 }

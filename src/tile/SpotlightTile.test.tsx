@@ -150,6 +150,53 @@ test("Screen share volume UI is hidden when screen share has no audio", async ()
   ).not.toBeInTheDocument();
 });
 
+test("Remote screen share shows a watch gate until the user opts in", async () => {
+  const vm = mockRemoteScreenShare(
+    mockRtcMembership("@alice:example.org", "AAAA"),
+    { rawDisplayName: "Alice" },
+    mockRemoteParticipant({}),
+  );
+
+  const user = userEvent.setup();
+  const toggleExpanded = vi.fn();
+  const { container } = render(
+    <TooltipProvider>
+      <SpotlightTile
+        vm={new SpotlightTileViewModel(constant([vm]), constant(false))}
+        targetWidth={300}
+        targetHeight={200}
+        expanded={false}
+        onToggleExpanded={toggleExpanded}
+        showIndicators
+        showNameTags
+        focusable
+      />
+    </TooltipProvider>,
+  );
+
+  expect(await axe(container)).toHaveNoViolations();
+
+  // Not watching yet: the gate is shown, and there is no unwatch/popout button
+  const watchButton = screen.getByTestId("incall_watch");
+  expect(watchButton).toBeInTheDocument();
+  expect(screen.queryByTestId("incall_unwatch")).not.toBeInTheDocument();
+  expect(vm.watching$.value).toBe(false);
+
+  await user.click(watchButton);
+
+  // Opting in flips the view model's watching state and swaps the gate for
+  // the "stop watching" control.
+  expect(vm.watching$.value).toBe(true);
+  expect(screen.queryByTestId("incall_watch")).not.toBeInTheDocument();
+  const unwatchButton = screen.getByTestId("incall_unwatch");
+  expect(unwatchButton).toBeInTheDocument();
+
+  await user.click(unwatchButton);
+
+  expect(vm.watching$.value).toBe(false);
+  expect(screen.getByTestId("incall_watch")).toBeInTheDocument();
+});
+
 test("SpotlightTile displays ringing media", async () => {
   const pickupState$ = new BehaviorSubject<
     RingingMediaViewModel["pickupState$"]["value"]

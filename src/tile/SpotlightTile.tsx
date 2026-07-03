@@ -8,6 +8,7 @@ Please see LICENSE in the repository root for full details.
 import {
   type ComponentProps,
   type FC,
+  type ReactNode,
   type Ref,
   type RefAttributes,
   useCallback,
@@ -29,6 +30,7 @@ import {
   EndCallIcon,
   PinSolidIcon,
   PopOutIcon,
+  VisibilityOffIcon,
 } from "@vector-im/compound-design-tokens/assets/web/icons";
 import { animated } from "@react-spring/web";
 import { type Observable, map } from "rxjs";
@@ -41,6 +43,7 @@ import { Menu, MenuItem } from "@vector-im/compound-web";
 import FullScreenMaximiseIcon from "../icons/FullScreenMaximise.svg?react";
 import FullScreenMinimiseIcon from "../icons/FullScreenMinimise.svg?react";
 import { MediaView } from "./MediaView";
+import { WatchGate } from "./WatchGate";
 import styles from "./SpotlightTile.module.css";
 import { useInitial } from "../useInitial";
 import { useMergedRefs } from "../useMergedRefs";
@@ -48,6 +51,7 @@ import { useReactiveState } from "../useReactiveState";
 import { useLatest } from "../useLatest";
 import { type SpotlightTileViewModel } from "../state/TileViewModel";
 import { useBehavior } from "../useBehavior";
+import { constant } from "../state/Behavior";
 import { type MemberMediaViewModel } from "../state/media/MemberMediaViewModel";
 import { type LocalUserMediaViewModel } from "../state/media/LocalUserMediaViewModel";
 import { type RemoteUserMediaViewModel } from "../state/media/RemoteUserMediaViewModel";
@@ -154,6 +158,7 @@ SpotlightUserMediaItem.displayName = "SpotlightUserMediaItem";
 interface SpotlightScreenShareItemProps extends SpotlightMemberMediaItemBaseProps {
   vm: ScreenShareViewModel;
   videoEnabled: boolean;
+  overlay?: ReactNode;
 }
 
 const SpotlightScreenShareItem: FC<SpotlightScreenShareItemProps> = ({
@@ -171,8 +176,22 @@ const SpotlightRemoteScreenShareItem: FC<
   SpotlightRemoteScreenShareItemProps
 > = ({ vm, ...props }) => {
   const videoEnabled = useBehavior(vm.videoEnabled$);
+  const watching = useBehavior(vm.watching$);
   return (
-    <SpotlightScreenShareItem vm={vm} videoEnabled={videoEnabled} {...props} />
+    <SpotlightScreenShareItem
+      vm={vm}
+      videoEnabled={videoEnabled}
+      overlay={
+        !watching && (
+          <WatchGate
+            displayName={props.displayName}
+            onWatch={() => vm.setWatching(true)}
+            focusable={props.focusable}
+          />
+        )
+      }
+      {...props}
+    />
   );
 };
 
@@ -425,7 +444,22 @@ export const SpotlightTile: FC<Props> = ({
   const visibleMedia = media.at(visibleIndex);
   const canGoBack = visibleIndex > 0;
   const canGoToNext = visibleIndex !== -1 && visibleIndex < media.length - 1;
-  const { popout, popoutActive } = usePopoutScreenShare(visibleMedia);
+
+  // Remote screen shares are opt-in (SelfMatrix Slice 4): while not watched,
+  // no LiveKit subscription is held for their tracks. All other media types
+  // (including local screen shares) are always considered "watched".
+  const visibleRemoteScreenShare =
+    visibleMedia?.type === "screen share" && !visibleMedia.local
+      ? visibleMedia
+      : undefined;
+  const alwaysWatching$ = useInitial(() => constant(true));
+  const watching = useBehavior(
+    visibleRemoteScreenShare?.watching$ ?? alwaysWatching$,
+  );
+
+  const { popout, popoutActive } = usePopoutScreenShare(
+    watching ? visibleMedia : undefined,
+  );
 
   const isFullscreen = useCallback((): boolean => {
     const rootElement = document.body;
@@ -544,6 +578,17 @@ export const SpotlightTile: FC<Props> = ({
             tabIndex={focusable ? undefined : -1}
           >
             <PinSolidIcon aria-hidden width={20} height={20} />
+          </button>
+        )}
+        {visibleRemoteScreenShare && watching && (
+          <button
+            className={classNames(styles.expand)}
+            aria-label={t("video_tile.stop_watching")}
+            data-testid="incall_unwatch"
+            onClick={() => visibleRemoteScreenShare.setWatching(false)}
+            tabIndex={focusable ? undefined : -1}
+          >
+            <VisibilityOffIcon aria-hidden width={20} height={20} />
           </button>
         )}
         {visibleMedia?.type === "screen share" && !visibleMedia.local && (

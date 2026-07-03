@@ -50,6 +50,11 @@ interface Props extends ComponentProps<typeof animated.div> {
   mxcAvatarUrl: string | undefined;
   focusable: boolean;
   primaryButton?: ReactNode;
+  /**
+   * Extra content stacked on top of the media (same grid area as the video
+   * and avatar), e.g. an opt-in gate. Does not affect the rest of the view.
+   */
+  overlay?: ReactNode;
   raisedHandTime?: Date;
   currentReaction?: ReactionOption;
   raisedHandOnClick?: () => void;
@@ -79,6 +84,7 @@ export const MediaView: FC<Props> = ({
   mxcAvatarUrl,
   focusable,
   primaryButton,
+  overlay,
   status,
   raisedHandTime,
   currentReaction,
@@ -222,6 +228,7 @@ export const MediaView: FC<Props> = ({
         )}
         {primaryButton}
       </div>
+      {overlay}
     </animated.div>
   );
 };
