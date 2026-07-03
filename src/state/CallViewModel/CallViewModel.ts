@@ -306,6 +306,12 @@ export interface CallViewModel {
   handsRaised$: Behavior<Record<string, RaisedHandInfo>>;
   /** List of reactions. Keys are: membership.membershipId (currently predefined as: `${membershipEvent.userId}:${membershipEvent.deviceId}`)*/
   reactions$: Behavior<Record<string, ReactionOption>>;
+  /**
+   * List of participants' user media (camera feeds), including the local
+   * user. Used by the SelfMatrix speaker overlay (Slice 5) to render
+   * avatar/name pills on top of a watched screen share.
+   */
+  overlayMembers$: Behavior<UserMediaViewModel[]>;
 
   // sounds and events
   joinSoundEffect$: Observable<void>;
@@ -784,6 +790,12 @@ export function createCallViewModel$(
       ),
     ),
   );
+
+  // SelfMatrix Slice 5: a plain list of participants' user media, exposed for
+  // the speaker overlay shown on top of a watched screen share. This is
+  // simply userMedia$ widened to the public UserMediaViewModel type (dropping
+  // the layout-only bin$/screenShares$ fields).
+  const overlayMembers$: Behavior<UserMediaViewModel[]> = userMedia$;
 
   const ringingMedia$ = scope.behavior<RingingMediaViewModel[]>(
     combineLatest([userMedia$, matrixRoomMembers$, callPickupState$]).pipe(
@@ -1758,6 +1770,7 @@ export function createCallViewModel$(
     participantCount$: participantCount$,
     handsRaised$: handsRaised$,
     reactions$: reactions$,
+    overlayMembers$: overlayMembers$,
     joinSoundEffect$: joinSoundEffect$,
     leaveSoundEffect$: leaveSoundEffect$,
     newHandRaised$: newHandRaised$,

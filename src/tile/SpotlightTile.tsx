@@ -170,11 +170,16 @@ const SpotlightScreenShareItem: FC<SpotlightScreenShareItemProps> = ({
 
 interface SpotlightRemoteScreenShareItemProps extends SpotlightMemberMediaItemBaseProps {
   vm: RemoteScreenShareViewModel;
+  /**
+   * The SelfMatrix speaker overlay (Slice 5), shown once the user has opted
+   * in to watching this screen share.
+   */
+  speakerOverlay?: ReactNode;
 }
 
 const SpotlightRemoteScreenShareItem: FC<
   SpotlightRemoteScreenShareItemProps
-> = ({ vm, ...props }) => {
+> = ({ vm, speakerOverlay, ...props }) => {
   const videoEnabled = useBehavior(vm.videoEnabled$);
   const watching = useBehavior(vm.watching$);
   return (
@@ -182,7 +187,9 @@ const SpotlightRemoteScreenShareItem: FC<
       vm={vm}
       videoEnabled={videoEnabled}
       overlay={
-        !watching && (
+        watching ? (
+          speakerOverlay
+        ) : (
           <WatchGate
             displayName={props.displayName}
             onWatch={() => vm.setWatching(true)}
@@ -197,10 +204,17 @@ const SpotlightRemoteScreenShareItem: FC<
 
 interface SpotlightMemberMediaItemProps extends SpotlightItemBaseProps {
   vm: MemberMediaViewModel;
+  /**
+   * The SelfMatrix speaker overlay (Slice 5) to show on top of a screen
+   * share that is currently being watched (local shares are always
+   * "watched"). Ignored for user media (camera) items.
+   */
+  speakerOverlay?: ReactNode;
 }
 
 const SpotlightMemberMediaItem: FC<SpotlightMemberMediaItemProps> = ({
   vm,
+  speakerOverlay,
   ...props
 }) => {
   const video = useBehavior(vm.video$);
@@ -218,9 +232,18 @@ const SpotlightMemberMediaItem: FC<SpotlightMemberMediaItemProps> = ({
   if (vm.type === "user")
     return <SpotlightUserMediaItem vm={vm} {...baseProps} />;
   return vm.local ? (
-    <SpotlightScreenShareItem vm={vm} videoEnabled {...baseProps} />
+    <SpotlightScreenShareItem
+      vm={vm}
+      videoEnabled
+      overlay={speakerOverlay}
+      {...baseProps}
+    />
   ) : (
-    <SpotlightRemoteScreenShareItem vm={vm} {...baseProps} />
+    <SpotlightRemoteScreenShareItem
+      vm={vm}
+      speakerOverlay={speakerOverlay}
+      {...baseProps}
+    />
   );
 };
 
@@ -275,6 +298,11 @@ interface SpotlightItemProps {
    */
   snap: boolean;
   "aria-hidden"?: boolean;
+  /**
+   * The SelfMatrix speaker overlay (Slice 5) to show on top of this item, if
+   * it turns out to be a watched screen share.
+   */
+  speakerOverlay?: ReactNode;
 }
 
 const SpotlightItem: FC<SpotlightItemProps> = ({
@@ -287,6 +315,7 @@ const SpotlightItem: FC<SpotlightItemProps> = ({
   intersectionObserver$,
   snap,
   "aria-hidden": ariaHidden,
+  speakerOverlay,
 }) => {
   const ourRef = useRef<HTMLDivElement | null>(null);
 
@@ -326,7 +355,11 @@ const SpotlightItem: FC<SpotlightItemProps> = ({
   return vm.type === "ringing" ? (
     <SpotlightRingingMediaItem vm={vm} {...baseProps} />
   ) : (
-    <SpotlightMemberMediaItem vm={vm} {...baseProps} />
+    <SpotlightMemberMediaItem
+      vm={vm}
+      speakerOverlay={speakerOverlay}
+      {...baseProps}
+    />
   );
 };
 
@@ -415,6 +448,11 @@ interface Props {
   onUnpin?: (() => void) | null;
   className?: string;
   style?: ComponentProps<typeof animated.div>["style"];
+  /**
+   * The SelfMatrix speaker overlay (Slice 5), shown on top of a screen share
+   * that is currently being watched.
+   */
+  speakerOverlay?: ReactNode;
 }
 
 export const SpotlightTile: FC<Props> = ({
@@ -431,6 +469,7 @@ export const SpotlightTile: FC<Props> = ({
   onUnpin = null,
   className,
   style,
+  speakerOverlay,
 }) => {
   const { t } = useTranslation();
   const [ourRef, root$] = useObservableRef<HTMLDivElement | null>(null);
@@ -563,6 +602,7 @@ export const SpotlightTile: FC<Props> = ({
             // that we want to bring into view
             snap={scrollToId === null || scrollToId === vm.id}
             aria-hidden={(scrollToId ?? visibleId) !== vm.id}
+            speakerOverlay={vm.id === visibleId ? speakerOverlay : undefined}
           />
         ))}
       </div>

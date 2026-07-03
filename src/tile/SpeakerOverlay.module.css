@@ -1,0 +1,87 @@
+/*
+Copyright 2026 Element Creations Ltd.
+
+SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE in the repository root for full details.
+*/
+
+/* Occupies the same grid area as the video/avatar (see MediaView.module.css
+.media), but only the pills inside actually receive pointer events, so the
+overlay never steals clicks meant for the video or the tile's buttons. */
+.overlay {
+  grid-area: content;
+  position: relative;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cpd-space-2x);
+  padding: var(--cpd-space-3x);
+  touch-action: none;
+  cursor: grab;
+}
+
+.overlay:active {
+  cursor: grabbing;
+}
+
+.overlay[data-block-alignment="start"] {
+  align-self: start;
+}
+
+.overlay[data-block-alignment="end"] {
+  align-self: end;
+}
+
+.overlay[data-inline-alignment="start"] {
+  inset-inline-start: 0;
+  align-items: flex-start;
+}
+
+.overlay[data-inline-alignment="end"] {
+  inset-inline-end: 0;
+  margin-inline-start: auto;
+  align-items: flex-end;
+}
+
+.pill {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--cpd-space-2x);
+  padding: var(--cpd-space-1x) var(--cpd-space-3x) var(--cpd-space-1x)
+    var(--cpd-space-1x);
+  border-radius: var(--cpd-radius-pill-effect);
+  background: rgba(from var(--cpd-color-bg-canvas-default) r g b / 0.72);
+  box-shadow: var(--small-drop-shadow);
+  user-select: none;
+  max-inline-size: 220px;
+}
+
+.avatar {
+  flex-shrink: 0;
+  border-radius: var(--cpd-radius-pill-effect);
+  transition: box-shadow ease 0.15s;
+  box-shadow: 0 0 0 var(--cpd-border-width-2) rgb(0 0 0 / 0);
+}
+
+.pill.speaking .avatar {
+  box-shadow: 0 0 0 var(--cpd-border-width-2)
+    var(--cpd-color-icon-success-primary);
+}
+
+.name {
+  color: var(--cpd-color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.speakingName {
+  color: var(--cpd-color-text-success-primary);
+}
+
+.muteIcon {
+  flex-shrink: 0;
+  color: var(--cpd-color-icon-secondary);
+}

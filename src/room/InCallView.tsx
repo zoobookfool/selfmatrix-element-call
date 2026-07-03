@@ -46,6 +46,7 @@ import {
 import { Grid, type TileProps } from "../grid/Grid";
 import { useInitial } from "../useInitial";
 import { SpotlightTile } from "../tile/SpotlightTile";
+import { SpeakerOverlay } from "../tile/SpeakerOverlay";
 import { type EncryptionSystem } from "../e2ee/sharedKeyManagement";
 import { E2eeType } from "../e2ee/e2eeType";
 import { makeGridLayout } from "../grid/GridLayout";
@@ -458,6 +459,12 @@ export const InCallView: FC<InCallViewProps> = ({
         const showSpeakingIndicators = useBehavior(vm.showSpeakingIndicators$);
         const showNameTags = useBehavior(vm.showNameTags$);
         const pinnedSpeakerId = useBehavior(vm.pinnedSpeakerId$);
+        const speakerOverlay = (
+          <SpeakerOverlay
+            members$={vm.overlayMembers$}
+            focusable={!contentObscured}
+          />
+        );
 
         return model instanceof GridTileViewModel ? (
           <PinnableTile
@@ -489,6 +496,7 @@ export const InCallView: FC<InCallViewProps> = ({
             onUnpin={(): void => vm.setPinnedSpeaker(null)}
             className={classNames(className, styles.tile)}
             style={style}
+            speakerOverlay={speakerOverlay}
           />
         );
       },
@@ -522,6 +530,12 @@ export const InCallView: FC<InCallViewProps> = ({
           showNameTags={showNameTags}
           focusable={!contentObscured}
           aria-hidden={contentObscured}
+          speakerOverlay={
+            <SpeakerOverlay
+              members$={vm.overlayMembers$}
+              focusable={!contentObscured}
+            />
+          }
         />
       );
     }

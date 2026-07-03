@@ -11,6 +11,7 @@ import { BehaviorSubject } from "rxjs";
 import { PosthogAnalytics } from "../analytics/PosthogAnalytics";
 import { type Behavior } from "../state/Behavior";
 import { useBehavior } from "../useBehavior";
+import type { Alignment } from "../state/layout-types";
 
 export class Setting<T> {
   public constructor(
@@ -154,4 +155,14 @@ export const matrixRTCMode = new Setting<MatrixRTCMode>(
 export const customLivekitUrl = new Setting<string | null>(
   "custom-livekit-url",
   null,
+);
+
+/**
+ * Corner (in the SpotlightTile's screen share) that the SelfMatrix speaker
+ * overlay (Slice 5, Discord StreamKit-style) is snapped to. Persisted across
+ * sessions like the other alignment-driven layout settings.
+ */
+export const speakerOverlayAlignment = new Setting<Alignment>(
+  "speaker-overlay-alignment",
+  { block: "end", inline: "start" },
 );
