@@ -98,7 +98,17 @@
     "feedback_tab_send_logs_label": "デバッグログを含める",
     "feedback_tab_thank_you": "ありがとうございます。フィードバックを受け取りました！",
     "feedback_tab_title": "フィードバック",
-    "opt_in_description": "<0></0><1></1>このボックスのチェックを外すと同意を取り消すことができます。現在通話中の場合、この変更は通話終了後に有効になります。"
+    "opt_in_description": "<0></0><1></1>このボックスのチェックを外すと同意を取り消すことができます。現在通話中の場合、この変更は通話終了後に有効になります。",
+    "preferences_tab": {
+      "mini_tile_strip_position": {
+        "bottom": "下",
+        "left": "左",
+        "right": "右",
+        "top": "上"
+      },
+      "mini_tile_strip_position_description": "参加者タイルの列を画面のどちら側に表示するか選択します。",
+      "mini_tile_strip_position_title": "ミニタイルの表示位置"
+    }
   },
   "start_new_call": "新しい通話を開始",
   "start_video_button_label": "ビデオを開始",
@@ -112,6 +122,14 @@
   "video_tile": {
     "change_fit_contain": "フレームに合わせる",
     "mute_for_me": "ミュートする",
-    "volume": "ボリューム"
+    "pin": "スポットライトに固定",
+    "split_view": "分割表示",
+    "split_view_next": "このペインに次を表示",
+    "stop_watching": "視聴をやめる",
+    "unpin": "スポットライトの固定を解除",
+    "unsplit_view": "分割表示を解除",
+    "volume": "ボリューム",
+    "watch_stream": "配信を見る",
+    "watch_stream_prompt": "{{displayName}} さんが画面を共有しています"
   }
 }
