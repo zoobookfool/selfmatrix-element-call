@@ -27,6 +27,7 @@ import {
   VideoCallSolidIcon,
   VoiceCallSolidIcon,
   EndCallIcon,
+  PopOutIcon,
 } from "@vector-im/compound-design-tokens/assets/web/icons";
 import { animated } from "@react-spring/web";
 import { type Observable, map } from "rxjs";
@@ -56,6 +57,7 @@ import { type MediaViewModel } from "../state/media/MediaViewModel";
 import { Slider } from "../Slider";
 import { platform } from "../Platform";
 import { type RingingMediaViewModel } from "../state/media/RingingMediaViewModel";
+import { usePopoutScreenShare } from "./popout/usePopoutScreenShare";
 
 interface SpotlightItemBaseProps {
   ref?: Ref<HTMLDivElement>;
@@ -416,6 +418,7 @@ export const SpotlightTile: FC<Props> = ({
   const visibleMedia = media.at(visibleIndex);
   const canGoBack = visibleIndex > 0;
   const canGoToNext = visibleIndex !== -1 && visibleIndex < media.length - 1;
+  const { popout, popoutActive } = usePopoutScreenShare(visibleMedia);
 
   const isFullscreen = useCallback((): boolean => {
     const rootElement = document.body;
@@ -526,6 +529,18 @@ export const SpotlightTile: FC<Props> = ({
       <div className={styles.bottomRightButtons}>
         {visibleMedia?.type === "screen share" && !visibleMedia.local && (
           <ScreenShareVolumeButton vm={visibleMedia} />
+        )}
+        {popout && (
+          <button
+            className={classNames(styles.expand)}
+            aria-label={"pop out"}
+            aria-pressed={popoutActive}
+            data-testid="incall_popout"
+            onClick={popout}
+            tabIndex={focusable ? undefined : -1}
+          >
+            <PopOutIcon aria-hidden width={20} height={20} />
+          </button>
         )}
         {platform === "desktop" && (
           <button
