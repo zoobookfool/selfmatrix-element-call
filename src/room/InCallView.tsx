@@ -459,12 +459,24 @@ export const InCallView: FC<InCallViewProps> = ({
         const showSpeakingIndicators = useBehavior(vm.showSpeakingIndicators$);
         const showNameTags = useBehavior(vm.showNameTags$);
         const pinnedSpeakerId = useBehavior(vm.pinnedSpeakerId$);
+        const gridMode = useBehavior(vm.gridMode$);
         const speakerOverlay = (
           <SpeakerOverlay
             members$={vm.overlayMembers$}
             focusable={!contentObscured}
           />
         );
+
+        // Pinning a tile is meant to bring it into the spotlight, but that
+        // has no visible effect while the layout is in grid mode. So if the
+        // user pins a tile while viewing the grid, also switch to spotlight
+        // so the pin is immediately visible. Unpinning never changes the
+        // layout mode on its own.
+        const onTogglePinned = (id: string): void => {
+          const wasPinned = pinnedSpeakerId === id;
+          vm.togglePinnedSpeaker(id);
+          if (!wasPinned && gridMode === "grid") vm.setGridMode("spotlight");
+        };
 
         return model instanceof GridTileViewModel ? (
           <PinnableTile
@@ -479,7 +491,7 @@ export const InCallView: FC<InCallViewProps> = ({
             showNameTags={showNameTags}
             focusable={!contentObscured}
             pinnedSpeakerId={pinnedSpeakerId}
-            onTogglePinned={vm.togglePinnedSpeaker}
+            onTogglePinned={onTogglePinned}
           />
         ) : (
           <SpotlightTile

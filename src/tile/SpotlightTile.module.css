@@ -26,6 +26,35 @@ Please see LICENSE in the repository root for full details.
   border-radius: 0;
 }
 
+/* SelfMatrix Slice 6a: split view shows two spotlight items side by side
+instead of a scrolling carousel. */
+.splitContents {
+  block-size: 100%;
+  inline-size: 100%;
+  display: flex;
+  gap: var(--cpd-space-1x);
+  border-radius: var(--cpd-space-6x);
+  contain: strict;
+}
+
+.tile.maximised .splitContents {
+  border-radius: 0;
+}
+
+.splitPane {
+  position: relative;
+  block-size: 100%;
+  flex: 1 1 0;
+  min-inline-size: 0;
+  overflow: hidden;
+}
+
+.splitPaneNext {
+  position: absolute;
+  inset-block-end: var(--cpd-space-1x);
+  inset-inline-start: var(--cpd-space-1x);
+}
+
 .item {
   height: 100%;
   flex-basis: 100%;
