@@ -13,6 +13,7 @@ import { type CallLayout } from "./CallLayout";
 import { type SpotlightLandscapeLayout as SpotlightLandscapeLayoutModel } from "../state/layout-types.ts";
 import styles from "./SpotlightLandscapeLayout.module.css";
 import { useUpdateLayout, useVisibleTiles } from "./Grid";
+import { miniTileStripPosition, useSetting } from "../settings/settings";
 
 /**
  * An implementation of the "spotlight landscape" layout, in which the spotlight
@@ -31,9 +32,14 @@ export const makeSpotlightLandscapeLayout: CallLayout<
   }): ReactNode {
     useUpdateLayout();
     useObservableEagerState(minBounds$);
+    const [stripPosition] = useSetting(miniTileStripPosition);
 
     return (
-      <div ref={ref} className={styles.layer}>
+      <div
+        ref={ref}
+        className={styles.layer}
+        data-strip-position={stripPosition}
+      >
         <div className={styles.spotlight}>
           <Slot
             className={styles.slot}
@@ -56,9 +62,14 @@ export const makeSpotlightLandscapeLayout: CallLayout<
     useObservableEagerState(minBounds$);
     const withIndicators =
       useObservableEagerState(model.spotlight.media$).length > 1;
+    const [stripPosition] = useSetting(miniTileStripPosition);
 
     return (
-      <div ref={ref} className={styles.layer}>
+      <div
+        ref={ref}
+        className={styles.layer}
+        data-strip-position={stripPosition}
+      >
         <div
           className={classNames(styles.spotlight, {
             [styles.withIndicators]: withIndicators,

@@ -222,6 +222,14 @@
       "developer_mode_label": "Developer mode",
       "developer_mode_label_description": "Enable developer mode and show developer settings tab.",
       "introduction": "Here you can configure extra options for an improved experience.",
+      "mini_tile_strip_position": {
+        "bottom": "Bottom",
+        "left": "Left",
+        "right": "Right",
+        "top": "Top"
+      },
+      "mini_tile_strip_position_description": "Choose which side of the screen the row of participant tiles appears on.",
+      "mini_tile_strip_position_title": "Mini tile strip position",
       "reactions_play_sound_description": "Play a sound effect when anyone sends a reaction into a call.",
       "reactions_play_sound_label": "Play reaction sounds",
       "reactions_show_description": "Show an animation when anyone sends a reaction.",

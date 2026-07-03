@@ -5,9 +5,16 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { type ChangeEvent, type FC } from "react";
+import { type ChangeEvent, type FC, useCallback, useId } from "react";
 import { useTranslation } from "react-i18next";
-import { Text } from "@vector-im/compound-web";
+import {
+  Heading,
+  InlineField,
+  Label,
+  RadioControl,
+  Root as Form,
+  Text,
+} from "@vector-im/compound-web";
 
 import { FieldRow, InputField } from "../input/Input";
 import {
@@ -15,8 +22,17 @@ import {
   showReactions as showReactionsSetting,
   playReactionsSound as playReactionsSoundSetting,
   developerMode as developerModeSetting,
+  miniTileStripPosition as miniTileStripPositionSetting,
+  type MiniTileStripPosition,
   useSetting,
 } from "./settings";
+
+const stripPositions: MiniTileStripPosition[] = [
+  "top",
+  "bottom",
+  "left",
+  "right",
+];
 
 export const PreferencesSettingsTab: FC = () => {
   const { t } = useTranslation();
@@ -38,6 +54,17 @@ export const PreferencesSettingsTab: FC = () => {
   };
 
   const [developerMode, setDeveloperMode] = useSetting(developerModeSetting);
+
+  const [miniTileStripPosition, setMiniTileStripPosition] = useSetting(
+    miniTileStripPositionSetting,
+  );
+  const miniTileStripPositionRadioGroup = useId();
+  const onMiniTileStripPositionChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      setMiniTileStripPosition(e.target.value as MiniTileStripPosition);
+    },
+    [setMiniTileStripPosition],
+  );
 
   return (
     <div>
@@ -90,6 +117,33 @@ export const PreferencesSettingsTab: FC = () => {
           }
         />
       </FieldRow>
+      <Heading as="h3" type="body" weight="semibold" size="lg">
+        {t("settings.preferences_tab.mini_tile_strip_position_title")}
+      </Heading>
+      <Text size="sm">
+        {t("settings.preferences_tab.mini_tile_strip_position_description")}
+      </Text>
+      <Form>
+        {stripPositions.map((position) => (
+          <InlineField
+            key={position}
+            name={miniTileStripPositionRadioGroup}
+            control={
+              <RadioControl
+                checked={miniTileStripPosition === position}
+                value={position}
+                onChange={onMiniTileStripPositionChange}
+              />
+            }
+          >
+            <Label>
+              {t(
+                `settings.preferences_tab.mini_tile_strip_position.${position}`,
+              )}
+            </Label>
+          </InlineField>
+        ))}
+      </Form>
     </div>
   );
 };

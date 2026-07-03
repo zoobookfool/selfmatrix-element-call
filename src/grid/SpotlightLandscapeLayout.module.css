@@ -5,15 +5,65 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
+/*
+The mini-tile strip (the scrolling rail of participant tiles alongside the
+spotlight tile) can be docked to any of the four edges of the layout via the
+`data-strip-position` attribute (SelfMatrix Slice 6b). The default ("right")
+preserves upstream Element Call's original layout; "bottom" is SelfMatrix's
+Discord-style default, set via the `mini-tile-strip-position` setting.
+*/
+
 .layer {
   block-size: 100%;
   display: grid;
   --gap: 20px;
   gap: var(--gap);
   --grid-slot-width: 180px;
+  --grid-slot-height: 135px;
   grid-template-columns: 1fr var(--grid-slot-width);
   grid-template-rows: minmax(1fr, auto);
   padding-inline: var(--gap);
+}
+
+.layer[data-strip-position="left"] {
+  grid-template-columns: var(--grid-slot-width) 1fr;
+}
+
+.layer[data-strip-position="left"] .spotlight {
+  grid-column: 2;
+}
+
+.layer[data-strip-position="left"] .grid {
+  grid-column: 1;
+}
+
+.layer[data-strip-position="top"],
+.layer[data-strip-position="bottom"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.layer[data-strip-position="top"] {
+  grid-template-rows: var(--grid-slot-height) 1fr;
+}
+
+.layer[data-strip-position="top"] .spotlight {
+  grid-row: 2;
+}
+
+.layer[data-strip-position="top"] .grid {
+  grid-row: 1;
+}
+
+.layer[data-strip-position="bottom"] {
+  grid-template-rows: 1fr var(--grid-slot-height);
+}
+
+.layer[data-strip-position="bottom"] .spotlight {
+  grid-row: 1;
+}
+
+.layer[data-strip-position="bottom"] .grid {
+  grid-row: 2;
 }
 
 .spotlight {
@@ -40,6 +90,6 @@ unconditionally select the container so we can use cq units */
 }
 
 .grid > .slot {
-  inline-size: 180px;
-  block-size: 135px;
+  inline-size: var(--grid-slot-width);
+  block-size: var(--grid-slot-height);
 }

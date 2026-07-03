@@ -166,3 +166,16 @@ export const speakerOverlayAlignment = new Setting<Alignment>(
   "speaker-overlay-alignment",
   { block: "end", inline: "start" },
 );
+
+/**
+ * Which edge of the spotlight-landscape layout the mini-tile strip (the
+ * scrolling rail of participant tiles) is docked to (SelfMatrix Slice 6b).
+ * Defaults to "bottom" to match Discord's layout convention, which differs
+ * from upstream Element Call's original default of a right-hand strip.
+ */
+export type MiniTileStripPosition = "top" | "bottom" | "left" | "right";
+
+export const miniTileStripPosition = new Setting<MiniTileStripPosition>(
+  "mini-tile-strip-position",
+  "bottom",
+);
