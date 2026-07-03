@@ -401,6 +401,17 @@ interface GridTileProps {
   showSpeakingIndicators: boolean;
   showNameTags: boolean;
   focusable: boolean;
+  // The following are passed straight through to the tile's root element, to
+  // allow wrapping components (e.g. PinnableTile) to make the whole tile
+  // interactive without needing to duplicate its DOM structure.
+  onClick?: ComponentProps<"div">["onClick"];
+  onKeyDown?: ComponentProps<"div">["onKeyDown"];
+  role?: ComponentProps<"div">["role"];
+  tabIndex?: ComponentProps<"div">["tabIndex"];
+  "aria-pressed"?: ComponentProps<"div">["aria-pressed"];
+  "aria-label"?: ComponentProps<"div">["aria-label"];
+  "data-testid"?: string;
+  "data-pinned"?: boolean;
 }
 
 export const GridTile: FC<GridTileProps> = ({

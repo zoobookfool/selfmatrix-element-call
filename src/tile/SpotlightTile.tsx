@@ -27,6 +27,7 @@ import {
   VideoCallSolidIcon,
   VoiceCallSolidIcon,
   EndCallIcon,
+  PinSolidIcon,
   PopOutIcon,
 } from "@vector-im/compound-design-tokens/assets/web/icons";
 import { animated } from "@react-spring/web";
@@ -389,6 +390,10 @@ interface Props {
   showIndicators: boolean;
   showNameTags: boolean;
   focusable: boolean;
+  /** Whether a participant is manually pinned to the spotlight. */
+  pinned?: boolean;
+  /** Clears the manual spotlight pin. Null if unpinning is unavailable. */
+  onUnpin?: (() => void) | null;
   className?: string;
   style?: ComponentProps<typeof animated.div>["style"];
 }
@@ -403,6 +408,8 @@ export const SpotlightTile: FC<Props> = ({
   showIndicators,
   showNameTags,
   focusable = true,
+  pinned = false,
+  onUnpin = null,
   className,
   style,
 }) => {
@@ -527,6 +534,18 @@ export const SpotlightTile: FC<Props> = ({
       </div>
 
       <div className={styles.bottomRightButtons}>
+        {pinned && onUnpin && (
+          <button
+            className={classNames(styles.expand)}
+            aria-label={t("video_tile.unpin")}
+            aria-pressed
+            data-testid="incall_unpin"
+            onClick={onUnpin}
+            tabIndex={focusable ? undefined : -1}
+          >
+            <PinSolidIcon aria-hidden width={20} height={20} />
+          </button>
+        )}
         {visibleMedia?.type === "screen share" && !visibleMedia.local && (
           <ScreenShareVolumeButton vm={visibleMedia} />
         )}
@@ -558,6 +577,8 @@ export const SpotlightTile: FC<Props> = ({
             aria-label={
               expanded ? t("video_tile.collapse") : t("video_tile.expand")
             }
+            aria-pressed={expanded}
+            data-testid="incall_hide_minitiles"
             onClick={onToggleExpanded}
             tabIndex={focusable ? undefined : -1}
           >

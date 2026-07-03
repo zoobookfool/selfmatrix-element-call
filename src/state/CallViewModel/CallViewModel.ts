@@ -142,6 +142,7 @@ import {
 import { Publisher } from "./localMember/Publisher.ts";
 import { type Connection } from "./remoteMembers/Connection.ts";
 import { createLayoutModeSwitch } from "./LayoutSwitch.ts";
+import { createPinnedSpeaker$ } from "./pinnedSpeaker.ts";
 import {
   createWrappedUserMedia,
   type WrappedUserMediaViewModel,
@@ -346,6 +347,16 @@ export interface CallViewModel {
   toggleSpotlightExpanded$: Behavior<(() => void) | null>;
   gridMode$: Behavior<GridMode>;
   setGridMode: (value: GridMode) => void;
+  /**
+   * The id (see BaseMediaViewModel.id) of the user media manually pinned to
+   * the spotlight by the local user, or null if there is no manual pin (in
+   * which case the spotlight speaker is selected automatically).
+   */
+  pinnedSpeakerId$: Behavior<string | null>;
+  /** Manually pin (or, with null, unpin) a participant's tile to the spotlight. */
+  setPinnedSpeaker: (id: string | null) => void;
+  /** Toggle whether a participant's tile is manually pinned to the spotlight. */
+  togglePinnedSpeaker: (id: string) => void;
 
   // header/footer visibility
   showHeader$: Behavior<boolean>;
@@ -895,7 +906,13 @@ export function createCallViewModel$(
       merge(userHangup$, widgetHangup$).pipe(map(() => "user" as const)),
     ).pipe(scope.share);
 
-  const spotlightSpeaker$ = scope.behavior<UserMediaViewModel | undefined>(
+  /**
+   * The automatically selected spotlight speaker, based on who is currently
+   * speaking (with a preference for sticking with the previous speaker).
+   * This does not take the user's manual pin selection into account; see
+   * spotlightSpeaker$ below for that.
+   */
+  const autoSpotlightSpeaker$ = scope.behavior<UserMediaViewModel | undefined>(
     userMedia$.pipe(
       switchMap((mediaItems) =>
         mediaItems.length === 0
@@ -928,6 +945,24 @@ export function createCallViewModel$(
               // Otherwise, spotlight the local user
               mediaItems.find(([m]) => m.local)?.[0]);
       }, undefined),
+    ),
+  );
+
+  const { pinnedSpeakerId$, setPinnedSpeaker, togglePinnedSpeaker } =
+    createPinnedSpeaker$(scope, userMedia$);
+
+  /**
+   * The user media to show in the spotlight: the manually pinned speaker if
+   * there is one still present in the call, otherwise falls back to the
+   * automatically selected speaker.
+   */
+  const spotlightSpeaker$ = scope.behavior<UserMediaViewModel | undefined>(
+    combineLatest(
+      [pinnedSpeakerId$, userMedia$, autoSpotlightSpeaker$],
+      (pinnedSpeakerId, userMedia, autoSpotlightSpeaker) =>
+        (pinnedSpeakerId !== null &&
+          userMedia.find((m) => m.id === pinnedSpeakerId)) ||
+        autoSpotlightSpeaker,
     ),
   );
 
@@ -1734,6 +1769,9 @@ export function createCallViewModel$(
     toggleSpotlightExpanded$: toggleSpotlightExpanded$,
     gridMode$: gridMode$,
     setGridMode: setGridMode,
+    pinnedSpeakerId$: pinnedSpeakerId$,
+    setPinnedSpeaker: setPinnedSpeaker,
+    togglePinnedSpeaker: togglePinnedSpeaker,
     layout$: layout$,
     localMatrixLivekitMember$,
     matrixLivekitMembers$: scope.behavior(

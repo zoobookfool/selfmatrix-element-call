@@ -1,0 +1,14 @@
+/*
+Copyright 2026 Element Creations Ltd.
+
+SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE in the repository root for full details.
+*/
+
+/* Applied directly to GridTile's root element (see GridTile.module.css's
+.tile, .speaking, .handRaised for the sibling conventions this follows). */
+.pinned {
+  /* !important to take priority over the hover outline. */
+  outline: var(--cpd-border-width-2) solid
+    var(--cpd-color-border-interactive-primary) !important;
+}

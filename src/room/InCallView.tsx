@@ -30,7 +30,7 @@ import { HeaderStyle, useUrlParams } from "../UrlParams";
 import { useCallViewKeyboardShortcuts } from "../useCallViewKeyboardShortcuts";
 import { widget } from "../widget";
 import styles from "./InCallView.module.css";
-import { GridTile } from "../tile/GridTile";
+import { PinnableTile } from "../tile/PinnableTile";
 import { SettingsModal, defaultSettingsTab } from "../settings/SettingsModal";
 import { useRageshakeRequestModal } from "../settings/submit-rageshake";
 import { RageshakeRequestModal } from "./RageshakeRequestModal";
@@ -457,9 +457,10 @@ export const InCallView: FC<InCallViewProps> = ({
         );
         const showSpeakingIndicators = useBehavior(vm.showSpeakingIndicators$);
         const showNameTags = useBehavior(vm.showNameTags$);
+        const pinnedSpeakerId = useBehavior(vm.pinnedSpeakerId$);
 
         return model instanceof GridTileViewModel ? (
-          <GridTile
+          <PinnableTile
             ref={ref}
             vm={model}
             onOpenProfile={openProfile}
@@ -470,6 +471,8 @@ export const InCallView: FC<InCallViewProps> = ({
             showSpeakingIndicators={showSpeakingIndicators}
             showNameTags={showNameTags}
             focusable={!contentObscured}
+            pinnedSpeakerId={pinnedSpeakerId}
+            onTogglePinned={vm.togglePinnedSpeaker}
           />
         ) : (
           <SpotlightTile
@@ -482,6 +485,8 @@ export const InCallView: FC<InCallViewProps> = ({
             showIndicators={showSpotlightIndicators}
             showNameTags={showNameTags}
             focusable={!contentObscured}
+            pinned={pinnedSpeakerId !== null}
+            onUnpin={(): void => vm.setPinnedSpeaker(null)}
             className={classNames(className, styles.tile)}
             style={style}
           />
