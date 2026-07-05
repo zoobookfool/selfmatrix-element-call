@@ -142,7 +142,10 @@ import {
 import { Publisher } from "./localMember/Publisher.ts";
 import { type Connection } from "./remoteMembers/Connection.ts";
 import { createLayoutModeSwitch } from "./LayoutSwitch.ts";
-import { createPinnedSpeaker$ } from "./pinnedSpeaker.ts";
+import {
+  createPinnedSpeaker$,
+  createRequestedPinnedSpeaker$,
+} from "./pinnedSpeaker.ts";
 import {
   createWrappedUserMedia,
   type WrappedUserMediaViewModel,
@@ -709,6 +712,14 @@ export function createCallViewModel$(
     ),
   );
 
+  // SelfMatrix: the raw (presence-unaware) spotlight pin request, created
+  // ahead of userMedia$ so that per-member view models (below) can derive
+  // their own "am I pinned?" Behavior without a circular dependency on
+  // userMedia$ (see createRequestedPinnedSpeaker$ for why presence-awareness
+  // isn't needed here).
+  const { requestedPinnedSpeakerId$, setPinnedSpeaker, togglePinnedSpeaker } =
+    createRequestedPinnedSpeaker$(scope);
+
   /**
    * List of user media (camera feeds) that we want tiles for.
    */
@@ -758,9 +769,10 @@ export function createCallViewModel$(
             }
           }
         },
-        (scope, _, dup, mediaId, userId, participant, connection$, rtcId) =>
-          createWrappedUserMedia(scope, {
-            id: `${mediaId}:${dup}`,
+        (scope, _, dup, mediaId, userId, participant, connection$, rtcId) => {
+          const id = `${mediaId}:${dup}`;
+          return createWrappedUserMedia(scope, {
+            id,
             userId,
             rtcBackendIdentity: rtcId,
             participant,
@@ -786,7 +798,14 @@ export function createCallViewModel$(
             reaction$: scope.behavior(
               reactions$.pipe(map((v) => v[mediaId] ?? undefined)),
             ),
-          }),
+            // SelfMatrix: whether this member is currently pinned to the
+            // spotlight (requirements MUST), forwarded down to its remote
+            // screen share (if any) for video quality control.
+            pinned$: scope.behavior(
+              requestedPinnedSpeakerId$.pipe(map((pin) => pin === id)),
+            ),
+          });
+        },
       ),
     ),
   );
@@ -960,8 +979,11 @@ export function createCallViewModel$(
     ),
   );
 
-  const { pinnedSpeakerId$, setPinnedSpeaker, togglePinnedSpeaker } =
-    createPinnedSpeaker$(scope, userMedia$);
+  const { pinnedSpeakerId$ } = createPinnedSpeaker$(
+    scope,
+    requestedPinnedSpeakerId$,
+    userMedia$,
+  );
 
   /**
    * The user media to show in the spotlight: the manually pinned speaker if

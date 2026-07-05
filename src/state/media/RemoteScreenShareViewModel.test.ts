@@ -10,6 +10,7 @@ import {
   ParticipantEvent,
   RemoteTrackPublication,
   Track,
+  VideoQuality,
 } from "livekit-client";
 import { TrackInfo } from "@livekit/protocol";
 
@@ -28,6 +29,7 @@ function mockPublication(sid: string): RemoteTrackPublication {
     true, // autoSubscribe, matching LiveKit's real default
   );
   vi.spyOn(publication, "setSubscribed");
+  vi.spyOn(publication, "setVideoQuality");
   return publication;
 }
 
@@ -132,5 +134,69 @@ describe("RemoteScreenShareViewModel", () => {
     await flushPromises();
 
     expect(videoBox.current.setSubscribed).toHaveBeenCalledWith(true);
+  });
+
+  describe("video quality control (SelfMatrix)", () => {
+    /**
+     * Sets up a remote screen share with mock video/audio publications, and
+     * optionally opts in to watching it.
+     */
+    function setUp({
+      pinned = false,
+      watching = true,
+    }: {
+      pinned?: boolean;
+      watching?: boolean;
+    }): {
+      video: RemoteTrackPublication;
+      audio: RemoteTrackPublication;
+    } {
+      const video = mockPublication("video");
+      const audio = mockPublication("audio");
+      const participant = mockRemoteParticipant({
+        getTrackPublication: (source) => {
+          if (source === Track.Source.ScreenShare) return video;
+          if (source === Track.Source.ScreenShareAudio) return audio;
+          return undefined as unknown as RemoteTrackPublication;
+        },
+      });
+
+      const vm = createRemoteScreenShare(testScope(), {
+        id: "screenshare",
+        userId: "@alice:example.org",
+        participant$: constant(participant),
+        encryptionSystem: { kind: 0 } as never,
+        livekitRoom$: constant(undefined),
+        focusUrl$: constant("https://rtc-example.org"),
+        pretendToBeDisconnected$: constant(false),
+        displayName$: constant("Alice"),
+        mxcAvatarUrl$: constant(undefined),
+        pinned$: constant(pinned),
+      });
+      if (watching) vm.setWatching(true);
+
+      return { video, audio };
+    }
+
+    test("sets video quality to HIGH when pinned and watching", async () => {
+      const { video } = setUp({ pinned: true, watching: true });
+      await flushPromises();
+
+      expect(video.setVideoQuality).toHaveBeenCalledWith(VideoQuality.HIGH);
+    });
+
+    test("sets video quality to LOW when not pinned but watching", async () => {
+      const { video } = setUp({ pinned: false, watching: true });
+      await flushPromises();
+
+      expect(video.setVideoQuality).toHaveBeenCalledWith(VideoQuality.LOW);
+    });
+
+    test("does not set video quality while not watching (unsubscribed)", async () => {
+      const { video } = setUp({ pinned: true, watching: false });
+      await flushPromises();
+
+      expect(video.setVideoQuality).not.toHaveBeenCalled();
+    });
   });
 });

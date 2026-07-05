@@ -9,13 +9,14 @@ Please see LICENSE in the repository root for full details.
 import {
   RemoteTrackPublication,
   Track,
+  VideoQuality,
   type RemoteParticipant,
   type TrackPublication,
 } from "livekit-client";
 import { BehaviorSubject, combineLatest, map, of, switchMap } from "rxjs";
 import { logger } from "matrix-js-sdk/lib/logger";
 
-import { type Behavior } from "../Behavior";
+import { constant, type Behavior } from "../Behavior";
 import {
   type BaseScreenShareInputs,
   type BaseScreenShareViewModel,
@@ -53,6 +54,13 @@ export interface RemoteScreenShareViewModel
 export interface RemoteScreenShareInputs extends BaseScreenShareInputs {
   participant$: Behavior<RemoteParticipant | null>;
   pretendToBeDisconnected$: Behavior<boolean>;
+  /**
+   * SelfMatrix: whether this screen share's owning member is currently
+   * pinned to the spotlight (requirements MUST: the gazed-at tile gets high
+   * quality, others are degraded). Defaults to always-false (never pinned)
+   * if omitted, e.g. in tests that don't care about quality control.
+   */
+  pinned$?: Behavior<boolean>;
 }
 
 /**
@@ -82,10 +90,39 @@ function applySubscription(
   }
 }
 
+/**
+ * SelfMatrix: applies the desired subscribed video quality to a screen
+ * share's video track publication (requirements MUST - the gazed-at tile
+ * gets high quality, others are degraded). Only meaningful for publications
+ * we are actually subscribed to (`setVideoQuality` is a no-op/warns
+ * otherwise per LiveKit's `isManualOperationAllowed` guard), so this is a
+ * best-effort call that mirrors the `watching` state.
+ */
+function applyVideoQuality(
+  publication: TrackPublication | undefined,
+  watching: boolean,
+  pinned: boolean,
+): void {
+  if (!watching) return;
+  if (!(publication instanceof RemoteTrackPublication)) return;
+  try {
+    publication.setVideoQuality(
+      pinned ? VideoQuality.HIGH : VideoQuality.LOW,
+    );
+  } catch (e) {
+    logger.warn(
+      "RemoteScreenShareViewModel: failed to set video quality on track publication",
+      e,
+    );
+  }
+}
+
 export function createRemoteScreenShare(
   scope: ObservableScope,
-  { pretendToBeDisconnected$, ...inputs }: RemoteScreenShareInputs,
+  { pretendToBeDisconnected$, pinned$, ...inputs }: RemoteScreenShareInputs,
 ): RemoteScreenShareViewModel {
+  const pinned: Behavior<boolean> = pinned$ ?? constant(false);
+
   // Not derived from an external source, so we manage this Behavior directly
   // rather than through `scope.behavior`. Screen shares are opt-in: nobody is
   // watching until the user explicitly asks to.
@@ -115,6 +152,28 @@ export function createRemoteScreenShare(
     async ({ watching, video, audio }) => {
       applySubscription(video?.publication, watching);
       applySubscription(audio?.publication, watching);
+    },
+  );
+
+  // SelfMatrix: whenever watching, pinned state, or the video publication
+  // itself changes, (re)apply the desired subscribed video quality. This
+  // mirrors the subscription reconcile above (reacting to publication
+  // appearance, not just `watching`/`pinned`, for the same resilience to
+  // publish-after-subscribe ordering and reconnects).
+  scope.reconcile(
+    scope.behavior(
+      combineLatest([watching$, pinned, inputs.participant$]).pipe(
+        switchMap(([watching, isPinned, p]) => {
+          if (!p) return of({ watching, pinned: isPinned, video: undefined });
+          return observeTrackReference$(p, Track.Source.ScreenShare).pipe(
+            map((video) => ({ watching, pinned: isPinned, video })),
+          );
+        }),
+      ),
+    ),
+    // eslint-disable-next-line @typescript-eslint/require-await -- reconcile's contract requires an async callback, but our work here is synchronous
+    async ({ watching, pinned, video }) => {
+      applyVideoQuality(video?.publication, watching, pinned);
     },
   );
 

@@ -715,6 +715,10 @@ export const createLocalMembership$ = ({
           noiseSuppression: false,
           voiceIsolation: false,
         },
+        // SelfMatrix: request 4K60 screen capture (requirements SHOULD). This
+        // is a constraint, not a guarantee: getDisplayMedia degrades it
+        // automatically if the source or display can't provide it.
+        resolution: { width: 3840, height: 2160, frameRate: 60 },
         selfBrowserSurface: "include",
         surfaceSwitching: "include",
         systemAudio: "include",

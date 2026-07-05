@@ -89,6 +89,12 @@ interface WrappedUserMediaInputs extends Omit<
   participant: TaggedParticipant;
   mediaDevices: MediaDevices;
   pretendToBeDisconnected$: Behavior<boolean>;
+  /**
+   * SelfMatrix: whether this member is currently pinned to the spotlight
+   * (requirements MUST). Forwarded to this member's remote screen share (if
+   * any) so it can prioritize its subscribed video quality accordingly.
+   */
+  pinned$?: Behavior<boolean>;
 }
 
 export function createWrappedUserMedia(
@@ -97,6 +103,7 @@ export function createWrappedUserMedia(
     participant,
     mediaDevices,
     pretendToBeDisconnected$,
+    pinned$,
     ...inputs
   }: WrappedUserMediaInputs,
 ): WrappedUserMediaViewModel {
@@ -154,6 +161,7 @@ export function createWrappedUserMedia(
                         id,
                         participant$: participant.value$,
                         pretendToBeDisconnected$,
+                        pinned$,
                       });
                 },
               ),
