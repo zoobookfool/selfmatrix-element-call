@@ -22,6 +22,7 @@ import { SyncState } from "matrix-js-sdk";
 import {
   ConnectionState,
   type LocalTrackPublication,
+  type Participant,
   type RemoteParticipant,
 } from "livekit-client";
 import * as ComponentsCore from "@livekit/components-core";
@@ -301,7 +302,12 @@ describe.each([
     });
   });
 
-  test("remote screen sharing activates spotlight layout", () => {
+  test("remote screen sharing no longer auto-activates spotlight layout", () => {
+    // SelfMatrix Discord-style shell: screen shares used to force-switch the
+    // layout to spotlight-landscape. That auto-switch has been removed (see
+    // LayoutSwitch.ts) in favour of a dismissible toast, so the layout should
+    // now stay "grid" throughout regardless of screen share activity, and
+    // manual mode selection is the only thing that can enter spotlight.
     withTestScheduler(({ behavior, schedule, expectObservable }) => {
       // Start with no screen shares, then have Alice and Bob share their screens,
       // then return to no screen shares, then have just Alice share for a bit
@@ -310,10 +316,21 @@ describe.each([
       // While there are no screen shares, switch to spotlight manually, and then
       // switch back to grid at the end
       const modeInputMarbles = "           -----s--g";
-      // We should automatically enter spotlight for the first round of screen
-      // sharing, then return to grid, then manually go into spotlight, and
-      // remain in spotlight until we manually go back to grid
+      // Unlike the old auto-switch behaviour, the layout now stays "grid"
+      // through the entire screen-sharing sequence (a-d): only the
+      // "spotlight" field (used by mini-tiles/pip) reacts to which screen
+      // shares are active. Manually selecting spotlight (e) is now the only
+      // way to reach spotlight-landscape, and it persists until manually
+      // reverted to grid (g), matching plain manual-selection semantics.
       const expectedLayoutMarbles = "      abcdaefeg";
+      // showSpeakingIndicators$ stays at its grid default (true) for the
+      // entire a-d run since the layout type never leaves "grid" there. Once
+      // manual selection enters spotlight-landscape (e/f/e), it tracks
+      // whether the spotlight is showing a screen share (per
+      // showSpeakingIndicators$'s own rules): false while spotlighting
+      // Alice's plain video (e), true once her screen share takes over (f),
+      // false again when it reverts to her video (e), then back to the grid
+      // default (true) at (g).
       const expectedShowSpeakingMarbles = "y----nyny";
       withCallViewModel(
         {
@@ -339,12 +356,12 @@ describe.each([
                 grid: [`${localId}:0`, `${aliceId}:0`, `${bobId}:0`],
               },
               b: {
-                type: "spotlight-landscape",
+                type: "grid",
                 spotlight: [`${aliceId}:0:screen-share`],
                 grid: [`${localId}:0`, `${aliceId}:0`, `${bobId}:0`],
               },
               c: {
-                type: "spotlight-landscape",
+                type: "grid",
                 spotlight: [
                   `${aliceId}:0:screen-share`,
                   `${bobId}:0:screen-share`,
@@ -352,7 +369,7 @@ describe.each([
                 grid: [`${localId}:0`, `${aliceId}:0`, `${bobId}:0`],
               },
               d: {
-                type: "spotlight-landscape",
+                type: "grid",
                 spotlight: [`${bobId}:0:screen-share`],
                 grid: [`${localId}:0`, `${aliceId}:0`, `${bobId}:0`],
               },
@@ -375,6 +392,55 @@ describe.each([
           );
           expectObservable(vm.showSpeakingIndicators$).toBe(
             expectedShowSpeakingMarbles,
+            yesNo,
+          );
+        },
+      );
+    });
+  });
+
+  test("showGridNameTags$ hides name tags only while spotlight-landscape is active", () => {
+    withTestScheduler(({ schedule, expectObservable }) => {
+      // Manually switch to spotlight, then back to grid.
+      const modeInputMarbles = "-sg";
+      // Grid name tags should be visible in grid mode (a), hidden while the
+      // spotlight-landscape layout is active (b), then visible again once
+      // back in grid mode (c).
+      const expectedLayoutMarbles = "abc";
+      const expectedShowGridNameTagsMarbles = "yny";
+      withCallViewModel(
+        {
+          remoteParticipants$: constant([aliceParticipant, bobParticipant]),
+          rtcMembers$: constant([localRtcMember, aliceRtcMember, bobRtcMember]),
+        },
+        (vm) => {
+          schedule(modeInputMarbles, {
+            s: () => vm.setGridMode("spotlight"),
+            g: () => vm.setGridMode("grid"),
+          });
+
+          expectObservable(summarizeLayout$(vm.layout$)).toBe(
+            expectedLayoutMarbles,
+            {
+              a: {
+                type: "grid",
+                spotlight: undefined,
+                grid: [`${localId}:0`, `${aliceId}:0`, `${bobId}:0`],
+              },
+              b: {
+                type: "spotlight-landscape",
+                spotlight: [`${aliceId}:0`],
+                grid: [`${localId}:0`, `${bobId}:0`],
+              },
+              c: {
+                type: "grid",
+                spotlight: undefined,
+                grid: [`${localId}:0`, `${bobId}:0`, `${aliceId}:0`],
+              },
+            },
+          );
+          expectObservable(vm.showGridNameTags$).toBe(
+            expectedShowGridNameTagsMarbles,
             yesNo,
           );
         },
@@ -447,6 +513,40 @@ describe.each([
               },
             },
           );
+        },
+      );
+    });
+  });
+
+  test("newRemoteScreenShare$ only fires for remote screen shares, not the local one", () => {
+    withTestScheduler(({ behavior, expectObservable }) => {
+      // The local participant starts sharing their screen on frame 1, then
+      // stops. Alice (remote) then starts sharing on frame 3.
+      const localSharingInputMarbles = "  nyn---";
+      const aliceSharingInputMarbles = "  n--yn-";
+      // newScreenShare$ counts every screen share, local or remote, so it
+      // fires both when the local user starts sharing (b) and when Alice
+      // does (d). newRemoteScreenShare$ should stay silent for the local
+      // share and only fire for Alice's.
+      const expectedNewScreenShareMarbles = "  -y-y--";
+      const expectedNewRemoteScreenShareMarbles = "  ---y--";
+      withCallViewModel(
+        {
+          remoteParticipants$: constant([aliceParticipant]),
+          rtcMembers$: constant([localRtcMember, aliceRtcMember]),
+          sharingScreen: new Map<Participant, Behavior<boolean>>([
+            [localParticipant, behavior(localSharingInputMarbles, yesNo)],
+            [aliceParticipant, behavior(aliceSharingInputMarbles, yesNo)],
+          ]),
+        },
+        (vm) => {
+          expectObservable(vm.newScreenShare$.pipe(map(() => "y"))).toBe(
+            expectedNewScreenShareMarbles,
+            { y: "y" },
+          );
+          expectObservable(
+            vm.newRemoteScreenShare$.pipe(map(() => "y")),
+          ).toBe(expectedNewRemoteScreenShareMarbles, { y: "y" });
         },
       );
     });

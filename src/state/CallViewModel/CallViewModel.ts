@@ -330,6 +330,10 @@ export interface CallViewModel {
    */
   newScreenShare$: Observable<{ value: number; playSounds: boolean }>;
   /**
+   * Like newScreenShare$, but only counts remote members' screen shares.
+   */
+  newRemoteScreenShare$: Observable<{ value: number; playSounds: boolean }>;
+  /**
    * Emits an array of reactions that should be played.
    */
   audibleReactions$: Observable<string[]>;
@@ -352,6 +356,14 @@ export interface CallViewModel {
   showSpotlightIndicators$: Behavior<boolean>;
   showSpeakingIndicators$: Behavior<boolean>;
   showNameTags$: Behavior<boolean>;
+  /**
+   * Like showNameTags$, but for the mini tiles shown alongside the
+   * spotlight (grid/strip tiles). Discord-style: name tags are redundant
+   * clutter on the small strip tiles whenever the spotlight is showing a
+   * single large feed (spotlight-landscape/spotlight-portrait), since the
+   * spotlight tile itself already carries a name tag.
+   */
+  showGridNameTags$: Behavior<boolean>;
   spotlightExpanded$: Behavior<boolean>;
   toggleSpotlightExpanded$: Behavior<(() => void) | null>;
   gridMode$: Behavior<GridMode>;
@@ -1074,14 +1086,6 @@ export function createCallViewModel$(
     ),
   );
 
-  const hasRemoteScreenShares$ = scope.behavior<boolean>(
-    spotlight$.pipe(
-      map((spotlight) =>
-        spotlight.some((vm) => vm.type === "screen share" && !vm.local),
-      ),
-    ),
-  );
-
   const pipEnabled$ = scope.behavior(setPipEnabled$, false);
 
   const windowSize$ =
@@ -1124,11 +1128,7 @@ export function createCallViewModel$(
     spotlightExpandedToggle$,
   );
 
-  const { setGridMode, gridMode$ } = createLayoutModeSwitch(
-    scope,
-    windowMode$,
-    hasRemoteScreenShares$,
-  );
+  const { setGridMode, gridMode$ } = createLayoutModeSwitch(scope, windowMode$);
 
   const gridLayoutMedia$: Observable<GridLayoutMedia> = combineLatest(
     [grid$, spotlight$],
@@ -1369,6 +1369,21 @@ export function createCallViewModel$(
               ),
             )
           : of(true),
+      ),
+    ),
+  );
+
+  // SelfMatrix Discord-style mini tile polish: suppress name tags on the
+  // grid/strip tiles whenever the spotlight is displaying a single large
+  // feed (spotlight-landscape/spotlight-portrait), since they add visual
+  // clutter that Discord-style layouts avoid. All other layouts fall back to
+  // the same logic as showNameTags$.
+  const showGridNameTags$ = scope.behavior<boolean>(
+    layoutMedia$.pipe(
+      switchMap((l) =>
+        l.type === "spotlight-landscape" || l.type === "spotlight-portrait"
+          ? of(false)
+          : showNameTags$,
       ),
     ),
   );
@@ -1712,6 +1727,21 @@ export function createCallViewModel$(
     filter((v) => v.playSounds),
   );
 
+  // Remote-only variant for UI that talks about *someone else* sharing (the
+  // grid-mode toast). newScreenShare$ also fires for our own share, which is
+  // right for sound effects but wrong for that copy.
+  const newRemoteScreenShare$ = screenShares$.pipe(
+    map((v) => v.filter((s) => !s.local).length),
+    scan(
+      (acc, newValue) => ({
+        value: newValue,
+        playSounds: newValue > acc.value,
+      }),
+      { value: 0, playSounds: false },
+    ),
+    filter((v) => v.playSounds),
+  );
+
   /**
    * Whether we are sharing our screen.
    */
@@ -1797,6 +1827,7 @@ export function createCallViewModel$(
     leaveSoundEffect$: leaveSoundEffect$,
     newHandRaised$: newHandRaised$,
     newScreenShare$: newScreenShare$,
+    newRemoteScreenShare$,
     audibleReactions$: audibleReactions$,
     visibleReactions$: visibleReactions$,
 
@@ -1829,6 +1860,7 @@ export function createCallViewModel$(
     showSpotlightIndicators$: showSpotlightIndicators$,
     showSpeakingIndicators$: showSpeakingIndicators$,
     showNameTags$,
+    showGridNameTags$,
     showHeader$: showHeader$,
     showFooter$: showFooter$,
     settingsOpen$: settingsOpen$,

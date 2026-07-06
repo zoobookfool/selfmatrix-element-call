@@ -65,4 +65,57 @@ describe("Toast", () => {
       expect(onDismiss).toHaveBeenCalled();
     });
   });
+
+  // SelfMatrix Discord-style shell: the optional action button (e.g. "View
+  // in spotlight" on the screen-share toast).
+  describe("action", () => {
+    test("renders the action button with the given label", () => {
+      const { getByRole } = render(
+        <Toast
+          open={true}
+          onDismiss={() => {}}
+          action={{ label: "View in spotlight", onClick: () => {} }}
+        >
+          Hello world!
+        </Toast>,
+      );
+      expect(
+        getByRole("button", { name: "View in spotlight" }),
+      ).toBeInTheDocument();
+    });
+
+    test("calls the action's onClick when clicked", async () => {
+      const user = userEvent.setup();
+      const onClick = vi.fn();
+      const { getByRole } = render(
+        <Toast
+          open={true}
+          onDismiss={() => {}}
+          action={{ label: "View in spotlight", onClick }}
+        >
+          Hello world!
+        </Toast>,
+      );
+      await user.click(getByRole("button", { name: "View in spotlight" }));
+      expect(onClick).toHaveBeenCalledOnce();
+    });
+
+    test("does not dismiss the toast when the action is clicked", async () => {
+      const user = userEvent.setup();
+      const onDismiss = vi.fn();
+      const onClick = vi.fn();
+      const { getByRole } = render(
+        <Toast
+          open={true}
+          onDismiss={onDismiss}
+          action={{ label: "View in spotlight", onClick }}
+        >
+          Hello world!
+        </Toast>,
+      );
+      await user.click(getByRole("button", { name: "View in spotlight" }));
+      expect(onClick).toHaveBeenCalledOnce();
+      expect(onDismiss).not.toHaveBeenCalled();
+    });
+  });
 });

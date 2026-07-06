@@ -1,0 +1,41 @@
+/*
+Copyright 2026 Element Creations Ltd.
+
+SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE in the repository root for full details.
+*/
+
+.overlay {
+  grid-area: content;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cpd-space-3x);
+  padding: var(--cpd-space-4x);
+  text-align: center;
+  border-radius: inherit;
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  color: var(--cpd-color-text-primary);
+}
+
+.overlay::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: var(--cpd-color-bg-canvas-default);
+  opacity: 0.65;
+}
+
+.overlay > svg {
+  color: var(--cpd-color-icon-primary);
+}
+
+.label {
+  overflow-wrap: anywhere;
+}

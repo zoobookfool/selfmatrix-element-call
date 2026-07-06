@@ -8,6 +8,7 @@ Please see LICENSE in the repository root for full details.
 import {
   type ComponentType,
   type FC,
+  type MouseEvent,
   type SVGAttributes,
   useCallback,
   useEffect,
@@ -51,6 +52,13 @@ interface Props {
    * @default true
    */
   modal?: boolean;
+  /**
+   * An optional action button rendered at the end of the toast (SelfMatrix
+   * Discord-style shell), e.g. "View in spotlight". Clicking it does not
+   * dismiss the toast on its own; combine with onDismiss in the handler if
+   * the action should also close the toast.
+   */
+  action?: { label: string; onClick: () => void };
 }
 
 /**
@@ -63,6 +71,7 @@ export const Toast: FC<Props> = ({
   children,
   Icon,
   modal = true,
+  action,
 }) => {
   const onOpenChange = useCallback(
     (open: boolean) => {
@@ -77,6 +86,18 @@ export const Toast: FC<Props> = ({
       return (): void => clearTimeout(timeout);
     }
   }, [open, autoDismiss, onDismiss]);
+
+  // The action button lives inside the DialogClose that dismisses the toast
+  // on click, so we stop the click from propagating to avoid dismissing the
+  // toast as a side effect of running the action (the action's own handler
+  // can still call onDismiss itself if that's the desired behaviour).
+  const onActionClick = useCallback(
+    (e: MouseEvent) => {
+      e.stopPropagation();
+      action?.onClick();
+    },
+    [action],
+  );
 
   const content = (
     <>
@@ -97,6 +118,15 @@ export const Toast: FC<Props> = ({
             </Text>
           </DialogTitle>
           {Icon && <Icon width={20} height={20} aria-hidden />}
+          {action && (
+            <button
+              type="button"
+              className={styles.action}
+              onClick={onActionClick}
+            >
+              {action.label}
+            </button>
+          )}
         </DialogClose>
       </DialogContent>
     </>

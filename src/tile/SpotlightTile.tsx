@@ -45,6 +45,7 @@ import FullScreenMaximiseIcon from "../icons/FullScreenMaximise.svg?react";
 import FullScreenMinimiseIcon from "../icons/FullScreenMinimise.svg?react";
 import { MediaView } from "./MediaView";
 import { WatchGate } from "./WatchGate";
+import { PopoutActiveOverlay } from "./PopoutActiveOverlay";
 import styles from "./SpotlightTile.module.css";
 import { useInitial } from "../useInitial";
 import { useMergedRefs } from "../useMergedRefs";
@@ -176,11 +177,17 @@ interface SpotlightRemoteScreenShareItemProps extends SpotlightMemberMediaItemBa
    * in to watching this screen share.
    */
   speakerOverlay?: ReactNode;
+  /**
+   * The SelfMatrix "popped out" overlay (Slice 2), shown instead of the
+   * speaker overlay/watch gate while this screen share is currently popped
+   * out into its own window.
+   */
+  popoutOverlay?: ReactNode;
 }
 
 const SpotlightRemoteScreenShareItem: FC<
   SpotlightRemoteScreenShareItemProps
-> = ({ vm, speakerOverlay, ...props }) => {
+> = ({ vm, speakerOverlay, popoutOverlay, ...props }) => {
   const videoEnabled = useBehavior(vm.videoEnabled$);
   const watching = useBehavior(vm.watching$);
   return (
@@ -188,7 +195,8 @@ const SpotlightRemoteScreenShareItem: FC<
       vm={vm}
       videoEnabled={videoEnabled}
       overlay={
-        watching ? (
+        popoutOverlay ??
+        (watching ? (
           speakerOverlay
         ) : (
           <WatchGate
@@ -196,7 +204,7 @@ const SpotlightRemoteScreenShareItem: FC<
             onWatch={() => vm.setWatching(true)}
             focusable={props.focusable}
           />
-        )
+        ))
       }
       {...props}
     />
@@ -211,11 +219,18 @@ interface SpotlightMemberMediaItemProps extends SpotlightItemBaseProps {
    * "watched"). Ignored for user media (camera) items.
    */
   speakerOverlay?: ReactNode;
+  /**
+   * The SelfMatrix "popped out" overlay (Slice 2) to show instead, when this
+   * screen share is currently popped out into its own window. Ignored for
+   * user media (camera) items.
+   */
+  popoutOverlay?: ReactNode;
 }
 
 const SpotlightMemberMediaItem: FC<SpotlightMemberMediaItemProps> = ({
   vm,
   speakerOverlay,
+  popoutOverlay,
   ...props
 }) => {
   const video = useBehavior(vm.video$);
@@ -236,13 +251,14 @@ const SpotlightMemberMediaItem: FC<SpotlightMemberMediaItemProps> = ({
     <SpotlightScreenShareItem
       vm={vm}
       videoEnabled
-      overlay={speakerOverlay}
+      overlay={popoutOverlay ?? speakerOverlay}
       {...baseProps}
     />
   ) : (
     <SpotlightRemoteScreenShareItem
       vm={vm}
       speakerOverlay={speakerOverlay}
+      popoutOverlay={popoutOverlay}
       {...baseProps}
     />
   );
@@ -310,6 +326,12 @@ interface SpotlightItemProps {
    * it turns out to be a watched screen share.
    */
   speakerOverlay?: ReactNode;
+  /**
+   * The SelfMatrix "popped out" overlay (Slice 2) to show on top of this
+   * item, if it turns out to be the screen share currently popped out into
+   * its own window.
+   */
+  popoutOverlay?: ReactNode;
 }
 
 const SpotlightItem: FC<SpotlightItemProps> = ({
@@ -323,6 +345,7 @@ const SpotlightItem: FC<SpotlightItemProps> = ({
   snap,
   "aria-hidden": ariaHidden,
   speakerOverlay,
+  popoutOverlay,
 }) => {
   const ourRef = useRef<HTMLDivElement | null>(null);
 
@@ -367,6 +390,7 @@ const SpotlightItem: FC<SpotlightItemProps> = ({
     <SpotlightMemberMediaItem
       vm={vm}
       speakerOverlay={speakerOverlay}
+      popoutOverlay={popoutOverlay}
       {...baseProps}
     />
   );
@@ -508,6 +532,16 @@ export const SpotlightTile: FC<Props> = ({
   const { popout, popoutActive } = usePopoutScreenShare(
     watching ? visibleMedia : undefined,
   );
+
+  const onFocusPopout = useCallback(() => popout?.(), [popout]);
+
+  // SelfMatrix Slice 2: while the visible screen share is popped out into
+  // its own window, show a lightweight placeholder overlay in its tile here
+  // in the main window instead of the speaker overlay/watch gate, so it's
+  // clear at a glance that the stream has moved elsewhere.
+  const popoutOverlay = popoutActive ? (
+    <PopoutActiveOverlay onFocus={onFocusPopout} focusable={focusable} />
+  ) : undefined;
 
   // SelfMatrix Slice 6a: when there are 2 or more items in the spotlight
   // carousel, the user can switch to a "split" mode that shows two of them
@@ -686,6 +720,11 @@ export const SpotlightTile: FC<Props> = ({
                 intersectionObserver$={undefined}
                 snap={false}
                 speakerOverlay={speakerOverlay}
+                popoutOverlay={
+                  splitLeftMedia.id === visibleMedia?.id
+                    ? popoutOverlay
+                    : undefined
+                }
               />
             )}
             {media.length >= 3 && (
@@ -747,6 +786,7 @@ export const SpotlightTile: FC<Props> = ({
               snap={scrollToId === null || scrollToId === vm.id}
               aria-hidden={(scrollToId ?? visibleId) !== vm.id}
               speakerOverlay={vm.id === visibleId ? speakerOverlay : undefined}
+              popoutOverlay={vm.id === visibleId ? popoutOverlay : undefined}
             />
           ))}
         </div>

@@ -27,3 +27,17 @@ Please see LICENSE in the repository root for full details.
   flex-shrink: 0;
   margin-inline-end: calc(-1 * var(--cpd-space-1x));
 }
+
+.action {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  margin-inline-start: var(--cpd-space-1x);
+  color: var(--cpd-color-text-on-solid-primary);
+  text-decoration: underline;
+  font: inherit;
+  font-weight: var(--cpd-font-weight-semibold);
+  cursor: pointer;
+  flex-shrink: 0;
+}

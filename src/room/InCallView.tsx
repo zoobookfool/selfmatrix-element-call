@@ -24,6 +24,7 @@ import { map } from "rxjs";
 import { useObservable } from "observable-hooks";
 import { logger as rootLogger } from "matrix-js-sdk/lib/logger";
 import { useTranslation } from "react-i18next";
+import { ShareScreenSolidIcon } from "@vector-im/compound-design-tokens/assets/web/icons";
 
 import { Header, LeftNav, RightNav, RoomHeaderInfo } from "../Header";
 import { HeaderStyle, useUrlParams } from "../UrlParams";
@@ -279,6 +280,26 @@ export const InCallView: FC<InCallViewProps> = ({
   const setSettingsOpen = useBehavior(vm.setSettingsOpen$);
   const earpieceMode = useBehavior(vm.earpieceMode$);
   const audioOutputSwitcher = useBehavior(vm.audioOutputSwitcher$);
+  const gridMode = useBehavior(vm.gridMode$);
+
+  // SelfMatrix Discord-style shell: screen shares no longer force-switch the
+  // layout into spotlight (see LayoutSwitch.ts). Instead, while in grid mode,
+  // a dismissible toast lets the user jump into spotlight on their own terms.
+  const [screenShareToastOpen, setScreenShareToastOpen] = useState(false);
+  useEffect(() => {
+    const subscription = vm.newRemoteScreenShare$.subscribe(() => {
+      if (gridMode === "grid") setScreenShareToastOpen(true);
+    });
+    return (): void => subscription.unsubscribe();
+  }, [vm, gridMode]);
+  const onDismissScreenShareToast = useCallback(
+    () => setScreenShareToastOpen(false),
+    [],
+  );
+  const onViewScreenShareInSpotlight = useCallback(() => {
+    vm.setGridMode("spotlight");
+    setScreenShareToastOpen(false);
+  }, [vm]);
 
   const fatalCallError = useBehavior(vm.fatalError$);
   // Stop the rendering and throw for the error boundary
@@ -430,6 +451,28 @@ export const InCallView: FC<InCallViewProps> = ({
     </>
   );
 
+  // SelfMatrix Discord-style shell: non-modal, so it doesn't trap focus or
+  // block interaction with the ongoing call while it's shown.
+  const screenShareToast = (
+    <Toast
+      onDismiss={onDismissScreenShareToast}
+      open={screenShareToastOpen}
+      autoDismiss={8000}
+      modal={false}
+      Icon={ShareScreenSolidIcon}
+      action={{
+        label: t("video_tile.view_in_spotlight", {
+          defaultValue: "View in spotlight",
+        }),
+        onClick: onViewScreenShareInSpotlight,
+      }}
+    >
+      {t("video_tile.screen_share_toast", {
+        defaultValue: "Someone started sharing their screen",
+      })}
+    </Toast>
+  );
+
   const earpieceOverlay = (
     <EarpieceOverlay
       show={earpieceMode && !reconnecting}
@@ -458,6 +501,7 @@ export const InCallView: FC<InCallViewProps> = ({
         );
         const showSpeakingIndicators = useBehavior(vm.showSpeakingIndicators$);
         const showNameTags = useBehavior(vm.showNameTags$);
+        const showGridNameTags = useBehavior(vm.showGridNameTags$);
         const pinnedSpeakerId = useBehavior(vm.pinnedSpeakerId$);
         const gridMode = useBehavior(vm.gridMode$);
         const speakerOverlay = (
@@ -488,7 +532,7 @@ export const InCallView: FC<InCallViewProps> = ({
             className={classNames(className, styles.tile)}
             style={style}
             showSpeakingIndicators={showSpeakingIndicators}
-            showNameTags={showNameTags}
+            showNameTags={showGridNameTags}
             focusable={!contentObscured}
             pinnedSpeakerId={pinnedSpeakerId}
             onTogglePinned={onTogglePinned}
@@ -658,6 +702,7 @@ export const InCallView: FC<InCallViewProps> = ({
       <CallEventAudioRenderer vm={vm} muted={muteAllAudio} />
       <ReactionsAudioRenderer vm={vm} muted={muteAllAudio} />
       {reconnectingToast}
+      {screenShareToast}
       {earpieceOverlay}
       <ReactionsOverlay vm={vm} />
       {footer}
