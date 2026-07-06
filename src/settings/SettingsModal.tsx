@@ -23,12 +23,14 @@ import {
   useSetting,
   soundEffectVolume as soundEffectVolumeSetting,
   backgroundBlur as backgroundBlurSetting,
+  noiseSuppressionMl as noiseSuppressionMlSetting,
   developerMode,
 } from "./settings";
 import { PreferencesSettingsTab } from "./PreferencesSettingsTab";
 import { Slider } from "../Slider";
 import { DeviceSelection } from "./DeviceSelection";
 import { useTrackProcessor } from "../livekit/TrackProcessorContext";
+import { useAudioTrackProcessor } from "../livekit/AudioProcessorContext";
 import { DeveloperSettingsTab } from "./DeveloperSettingsTab";
 import { FieldRow, InputField } from "../input/Input";
 import { useSubmitRageshake } from "./submit-rageshake";
@@ -91,6 +93,37 @@ export const SettingsModal: FC<Props> = ({
             type="checkbox"
             checked={!!blurActive}
             onChange={(b): void => setBlurActive(b.target.checked)}
+            disabled={!supported}
+          />
+        </FieldRow>
+      </>
+    );
+  };
+
+  // Generate a `Checkbox` input to turn ML noise suppression on or off.
+  const NoiseSuppressionCheckbox: React.FC = (): ReactNode => {
+    const { supported } = useAudioTrackProcessor();
+
+    const [noiseSuppressionActive, setNoiseSuppressionActive] = useSetting(
+      noiseSuppressionMlSetting,
+    );
+
+    return (
+      <>
+        <h4>{t("settings.noise_suppression_header")}</h4>
+
+        <FieldRow>
+          <InputField
+            id="activateNoiseSuppression"
+            label={t("settings.noise_suppression_label")}
+            description={
+              supported
+                ? ""
+                : t("settings.noise_suppression_not_supported_by_browser")
+            }
+            type="checkbox"
+            checked={!!noiseSuppressionActive}
+            onChange={(b): void => setNoiseSuppressionActive(b.target.checked)}
             disabled={!supported}
           />
         </FieldRow>
@@ -165,6 +198,8 @@ export const SettingsModal: FC<Props> = ({
             />
           </div>
         </Form>
+        <Separator />
+        <NoiseSuppressionCheckbox />
       </>
     ),
   };

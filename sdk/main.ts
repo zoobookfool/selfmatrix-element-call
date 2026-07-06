@@ -143,6 +143,7 @@ export async function createMatrixRTCSdk(
     of({}),
     of({}),
     constant({ supported: false, processor: undefined }),
+    constant({ supported: false, processor: undefined }),
   );
   logger.info("CallViewModelCreated");
 

@@ -104,6 +104,15 @@ export const videoInput = new Setting<string | undefined>(
 
 export const backgroundBlur = new Setting<boolean>("background-blur", false);
 
+/**
+ * SelfMatrix: ML-based background noise suppression (RNNoise via
+ * NoiseSuppressionProcessor). Defaults to enabled, unlike backgroundBlur.
+ */
+export const noiseSuppressionMl = new Setting<boolean>(
+  "noise-suppression-ml",
+  true,
+);
+
 export const showHandRaisedTimer = new Setting<boolean>(
   "hand-raised-show-timer",
   false,

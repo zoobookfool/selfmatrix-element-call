@@ -21,6 +21,7 @@ import {
   ownMemberMock,
 } from "../../../utils/test.ts";
 import type { ProcessorState } from "../../../livekit/TrackProcessorContext.tsx";
+import type { AudioProcessorState } from "../../../livekit/AudioProcessorContext.tsx";
 import { constant } from "../../Behavior";
 
 // At the top of your test file, after imports
@@ -141,6 +142,145 @@ describe("ECConnectionFactory - ControlledAudioDevice", () => {
       );
     },
   );
+});
+
+describe("ECConnectionFactory - ML noise suppression", () => {
+  const fakeMlProcessor = {
+    name: "fake-ml-noise-suppression",
+    init: vi.fn(),
+    restart: vi.fn(),
+    destroy: vi.fn(),
+  };
+
+  test.each([
+    { echo: true, noise: true },
+    { echo: true, noise: false },
+    { echo: false, noise: true },
+    { echo: false, noise: false },
+  ])(
+    "forces noiseSuppression=false (without a capture-defaults processor) when the ML processor is active (constructor noise=$noise)",
+    ({ echo, noise }) => {
+      const RoomConstructor = vi.mocked(LivekitRoom);
+
+      const ecConnectionFactory = new ECConnectionFactory(
+        mockClient,
+        "!roomid:example.org",
+        mockMediaDevices({}),
+        new BehaviorSubject<ProcessorState>({
+          supported: true,
+          processor: undefined,
+        }),
+        undefined,
+        false,
+        undefined,
+        echo,
+        noise,
+        new BehaviorSubject<AudioProcessorState>({
+          supported: true,
+          processor: fakeMlProcessor,
+        }),
+      );
+      ecConnectionFactory.createConnection(
+        testScope,
+        exampleTransport,
+        ownMemberMock,
+        logger,
+      );
+
+      expect(RoomConstructor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          audioCaptureDefaults: expect.objectContaining({
+            echoCancellation: echo,
+            // Always forced to false when the ML processor is active,
+            // regardless of the constructor-provided `noise` value.
+            noiseSuppression: false,
+          }),
+        }),
+      );
+      // The processor must NOT be planted in the capture defaults:
+      // livekit-client sets the track's audioContext only after
+      // createLocalTracks, so a capture-defaults processor makes the first
+      // mic publish throw. It is attached post-creation by the Publisher's
+      // live-sync path instead.
+      const roomOptions = RoomConstructor.mock.calls.at(-1)?.[0];
+      expect(roomOptions?.audioCaptureDefaults?.processor).toBeUndefined();
+    },
+  );
+
+  test("uses the constructor-provided noiseSuppression value and no processor when ML suppression is inactive", () => {
+    const RoomConstructor = vi.mocked(LivekitRoom);
+
+    const ecConnectionFactory = new ECConnectionFactory(
+      mockClient,
+      "!roomid:example.org",
+      mockMediaDevices({}),
+      new BehaviorSubject<ProcessorState>({
+        supported: true,
+        processor: undefined,
+      }),
+      undefined,
+      false,
+      undefined,
+      true,
+      true,
+      new BehaviorSubject<AudioProcessorState>({
+        supported: true,
+        processor: undefined,
+      }),
+    );
+    ecConnectionFactory.createConnection(
+      testScope,
+      exampleTransport,
+      ownMemberMock,
+      logger,
+    );
+
+    expect(RoomConstructor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        audioCaptureDefaults: expect.objectContaining({
+          noiseSuppression: true,
+        }),
+      }),
+    );
+    const roomOptions = RoomConstructor.mock.calls.at(-1)?.[0];
+    expect(roomOptions?.audioCaptureDefaults?.processor).toBeUndefined();
+  });
+
+  test("uses the constructor-provided noiseSuppression value when no audioProcessorState$ is supplied at all", () => {
+    const RoomConstructor = vi.mocked(LivekitRoom);
+
+    const ecConnectionFactory = new ECConnectionFactory(
+      mockClient,
+      "!roomid:example.org",
+      mockMediaDevices({}),
+      new BehaviorSubject<ProcessorState>({
+        supported: true,
+        processor: undefined,
+      }),
+      undefined,
+      false,
+      undefined,
+      true,
+      true,
+      // audioProcessorState$ omitted entirely (undefined)
+    );
+    ecConnectionFactory.createConnection(
+      testScope,
+      exampleTransport,
+      ownMemberMock,
+      logger,
+    );
+
+    expect(RoomConstructor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        audioCaptureDefaults: expect.objectContaining({
+          noiseSuppression: true,
+        }),
+      }),
+    );
+    const roomOptions = RoomConstructor.mock.calls.at(-1)?.[0];
+    expect(roomOptions?.audioCaptureDefaults?.processor).toBeUndefined();
+  });
 });
 
 afterEach(() => {

@@ -177,6 +177,7 @@ export function getBasicCallViewModelEnvironment(
     handRaisedSubject$,
     reactionsSubject$,
     constant({ processor: undefined, supported: false }),
+    constant({ processor: undefined, supported: false }),
   );
   const footerVm = createCallFooterViewModel(
     testScope(),

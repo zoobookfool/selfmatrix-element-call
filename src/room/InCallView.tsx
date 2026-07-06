@@ -80,6 +80,7 @@ import { useAudioContext } from "../useAudioContext";
 import ringtoneMp3 from "../sound/ringtone.mp3?url";
 import ringtoneOgg from "../sound/ringtone.ogg?url";
 import { useTrackProcessorObservable$ } from "../livekit/TrackProcessorContext.tsx";
+import { useAudioTrackProcessorObservable$ } from "../livekit/AudioProcessorContext.tsx";
 import { type Layout } from "../state/layout-types.ts";
 import { ObservableScope } from "../state/ObservableScope.ts";
 import { useLatest } from "../useLatest.ts";
@@ -116,6 +117,7 @@ export const ActiveCall: FC<ActiveCallProps> = (props) => {
   const urlParams = useUrlParams();
   const mediaDevices = useMediaDevices();
   const trackProcessorState$ = useTrackProcessorObservable$();
+  const audioProcessorState$ = useAudioTrackProcessorObservable$();
   useEffect(() => {
     logger.info("START CALL VIEW SCOPE");
     const scope = new ObservableScope();
@@ -138,6 +140,7 @@ export const ActiveCall: FC<ActiveCallProps> = (props) => {
       reactionsReader.raisedHands$,
       reactionsReader.reactions$,
       scope.behavior(trackProcessorState$),
+      scope.behavior(audioProcessorState$),
     );
     // TODO move this somewhere else once we use the callViewModel in the lobby as well!
     vm.join();
@@ -157,6 +160,7 @@ export const ActiveCall: FC<ActiveCallProps> = (props) => {
     urlParams,
     mediaDevices,
     trackProcessorState$,
+    audioProcessorState$,
     props.client,
   ]);
 

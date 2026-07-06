@@ -28,6 +28,7 @@ import { Initializer } from "./initializer";
 import { widget } from "./widget";
 import { useTheme } from "./useTheme";
 import { ProcessorProvider } from "./livekit/TrackProcessorContext";
+import { AudioProcessorProvider } from "./livekit/AudioProcessorContext";
 import { type AppViewModel } from "./state/AppViewModel";
 import { MediaDevicesContext } from "./MediaDevicesContext";
 import { getUrlParams, HeaderStyle } from "./UrlParams";
@@ -82,16 +83,18 @@ export const App: FC<Props> = ({ vm }) => {
     <ClientProvider>
       <MediaDevicesContext value={vm.mediaDevices}>
         <ProcessorProvider>
-          <Sentry.ErrorBoundary
-            fallback={(error) => <ErrorPage error={error} widget={widget} />}
-          >
-            <Routes>
-              <SentryRoute path="/" element={<HomePage />} />
-              <SentryRoute path="/login" element={<LoginPage />} />
-              <SentryRoute path="/register" element={<RegisterPage />} />
-              <SentryRoute path="*" element={<RoomPage />} />
-            </Routes>
-          </Sentry.ErrorBoundary>
+          <AudioProcessorProvider>
+            <Sentry.ErrorBoundary
+              fallback={(error) => <ErrorPage error={error} widget={widget} />}
+            >
+              <Routes>
+                <SentryRoute path="/" element={<HomePage />} />
+                <SentryRoute path="/login" element={<LoginPage />} />
+                <SentryRoute path="/register" element={<RegisterPage />} />
+                <SentryRoute path="*" element={<RoomPage />} />
+              </Routes>
+            </Sentry.ErrorBoundary>
+          </AudioProcessorProvider>
         </ProcessorProvider>
       </MediaDevicesContext>
     </ClientProvider>

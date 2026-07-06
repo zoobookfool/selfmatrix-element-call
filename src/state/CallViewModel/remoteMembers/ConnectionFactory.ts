@@ -27,6 +27,7 @@ import type {
 import type { MediaDevices } from "../../MediaDevices.ts";
 import type { Behavior } from "../../Behavior.ts";
 import type { ProcessorState } from "../../../livekit/TrackProcessorContext.tsx";
+import type { AudioProcessorState } from "../../../livekit/AudioProcessorContext.tsx";
 import { defaultLiveKitOptions } from "../../../livekit/options.ts";
 
 // TODO evaluate if this should be done like the Publisher Factory
@@ -54,7 +55,8 @@ export class ECConnectionFactory implements ConnectionFactory {
    * @param controlledAudioDevices - Option to indicate whether audio output device is controlled externally (native mobile app).
    * @param livekitRoomFactory - Optional factory function (for testing) to create LivekitRoom instances. If not provided, a default factory is used.
    * @param echoCancellation - Whether to enable echo cancellation for audio capture.
-   * @param noiseSuppression - Whether to enable noise suppression for audio capture.
+   * @param noiseSuppression - Whether to enable noise suppression for audio capture. Ignored (forced to false) when the ML noise suppression processor is active, to avoid double-processing audio.
+   * @param audioProcessorState$ - The ML noise suppression (RNNoise) processor state, if enabled.
    */
   public constructor(
     private client: OpenIDClientParts,
@@ -66,6 +68,7 @@ export class ECConnectionFactory implements ConnectionFactory {
     livekitRoomFactory?: () => LivekitRoom,
     echoCancellation: boolean = true,
     noiseSuppression: boolean = true,
+    private audioProcessorState$?: Behavior<AudioProcessorState>,
   ) {
     const defaultFactory = (): LivekitRoom =>
       new LivekitRoom(
@@ -81,6 +84,7 @@ export class ECConnectionFactory implements ConnectionFactory {
           controlledAudioDevices: this.controlledAudioDevices,
           echoCancellation,
           noiseSuppression,
+          audioProcessorState: this.audioProcessorState$?.value,
         }),
       );
     this.livekitRoomFactory = livekitRoomFactory ?? defaultFactory;
@@ -119,14 +123,17 @@ export class ECConnectionFactory implements ConnectionFactory {
 
 /**
  *  Generate the initial LiveKit RoomOptions based on the current media devices and processor state.
+ *
+ *  Exported for unit testing.
  */
-function generateRoomOption({
+export function generateRoomOption({
   devices,
   processorState,
   e2eeLivekitOptions,
   controlledAudioDevices,
   echoCancellation,
   noiseSuppression,
+  audioProcessorState,
 }: {
   devices: MediaDevices;
   processorState: ProcessorState;
@@ -137,7 +144,9 @@ function generateRoomOption({
   controlledAudioDevices: boolean;
   echoCancellation: boolean;
   noiseSuppression: boolean;
+  audioProcessorState?: AudioProcessorState;
 }): RoomOptions {
+  const mlNoiseSuppressionActive = audioProcessorState?.processor !== undefined;
   return {
     ...defaultLiveKitOptions,
     videoCaptureDefaults: {
@@ -149,7 +158,17 @@ function generateRoomOption({
       ...defaultLiveKitOptions.audioCaptureDefaults,
       deviceId: devices.audioInput.selected$.value?.id,
       echoCancellation,
-      noiseSuppression,
+      // Forced off when the ML (RNNoise) processor is active, to avoid
+      // double-processing audio through both the browser's built-in noise
+      // suppression and our own. echoCancellation/autoGainControl are left
+      // as-is since they address a different problem and don't conflict.
+      noiseSuppression: mlNoiseSuppressionActive ? false : noiseSuppression,
+      // Deliberately NOT setting `processor` here: livekit-client only assigns
+      // the track's audioContext *after* createLocalTracks, and
+      // LocalAudioTrack.setProcessor throws without one — a processor in the
+      // capture defaults would break the very first mic publish. The processor
+      // is attached post-creation by the Publisher's audioTrackProcessorSync
+      // live-sync path instead.
     },
     audioOutput: {
       // When using controlled audio devices, we don't want to set the

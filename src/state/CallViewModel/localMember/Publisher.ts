@@ -7,6 +7,7 @@ Please see LICENSE in the repository root for full details.
 */
 import {
   ConnectionState as LivekitConnectionState,
+  LocalAudioTrack,
   type LocalTrackPublication,
   LocalVideoTrack,
   ParticipantEvent,
@@ -29,6 +30,10 @@ import {
   type ProcessorState,
   trackProcessorSync,
 } from "../../../livekit/TrackProcessorContext.tsx";
+import {
+  type AudioProcessorState,
+  audioTrackProcessorSync,
+} from "../../../livekit/AudioProcessorContext.tsx";
 import { getUrlParams } from "../../../UrlParams.ts";
 import { observeTrackReference$ } from "../../observeTrackReference";
 import { type Connection } from "../remoteMembers/Connection.ts";
@@ -56,6 +61,7 @@ export class Publisher {
    * @param muteStates - The mute states for audio and video.
    * @param trackerProcessorState$ - The processor state for the video track processor (e.g. background blur).
    * @param logger - The logger to use for logging :D.
+   * @param audioProcessorState$ - The processor state for the audio track processor (ML noise suppression).
    */
   public constructor(
     private connection: Pick<Connection, "livekitRoom" | "state$">, //setE2EEEnabled,
@@ -63,6 +69,7 @@ export class Publisher {
     private readonly muteStates: MuteStates,
     trackerProcessorState$: Behavior<ProcessorState>,
     private logger: Logger,
+    audioProcessorState$?: Behavior<AudioProcessorState>,
   ) {
     const { controlledAudioDevices } = getUrlParams();
     const room = connection.livekitRoom;
@@ -73,6 +80,10 @@ export class Publisher {
 
     // Setup track processor syncing (blur)
     this.observeTrackProcessors(this.scope, room, trackerProcessorState$);
+    // Setup audio track processor syncing (ML noise suppression)
+    if (audioProcessorState$) {
+      this.observeAudioTrackProcessors(this.scope, room, audioProcessorState$);
+    }
     // Observe media device changes and update LiveKit active devices accordingly
     this.observeMediaDevices(this.scope, devices, controlledAudioDevices);
 
@@ -439,5 +450,25 @@ export class Publisher {
       null,
     );
     trackProcessorSync(scope, track$, trackerProcessorState$);
+  }
+
+  private observeAudioTrackProcessors(
+    scope: ObservableScope,
+    room: LivekitRoom,
+    audioProcessorState$: Behavior<AudioProcessorState>,
+  ): void {
+    const track$ = scope.behavior(
+      observeTrackReference$(
+        room.localParticipant,
+        Track.Source.Microphone,
+      ).pipe(
+        map((trackRef) => {
+          const track = trackRef?.publication.track;
+          return track instanceof LocalAudioTrack ? track : null;
+        }),
+      ),
+      null,
+    );
+    audioTrackProcessorSync(scope, track$, audioProcessorState$);
   }
 }

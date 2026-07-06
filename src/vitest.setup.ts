@@ -101,3 +101,20 @@ if (
     configurable: true,
   });
 }
+
+// jsdom does not implement AudioWorklet/AudioWorkletNode at all, but
+// `@sapphi-red/web-noise-suppressor` (used by NoiseSuppressionProcessor)
+// declares `class X extends AudioWorkletNode {}` at module scope, which
+// throws a ReferenceError merely by being imported -- before any of our own
+// feature-detection code gets a chance to run. Stub it out so the module can
+// be imported in tests. This does NOT make jsdom "support" AudioWorklet in
+// any functional sense (the stub can't be constructed as a real node), so
+// our actual `typeof AudioWorkletNode === "undefined"` checks would need a
+// different signal; NoiseSuppressionProcessor instead guards on
+// `audioContext.audioWorklet`, which stays absent in jsdom.
+if (typeof globalThis.AudioWorkletNode === "undefined") {
+  class AudioWorkletNodeStub {}
+  (
+    globalThis as unknown as { AudioWorkletNode: unknown }
+  ).AudioWorkletNode = AudioWorkletNodeStub;
+}

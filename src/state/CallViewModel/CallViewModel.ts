@@ -86,6 +86,7 @@ import { MatrixKeyProvider } from "../../e2ee/matrixKeyProvider";
 import { type MuteStates } from "../MuteStates";
 import { getUrlParams, HeaderStyle } from "../../UrlParams";
 import { type ProcessorState } from "../../livekit/TrackProcessorContext";
+import { type AudioProcessorState } from "../../livekit/AudioProcessorContext";
 import { ElementWidgetActions, widget } from "../../widget";
 import {
   type Alignment,
@@ -437,6 +438,7 @@ export function createCallViewModel$(
   handsRaisedSubject$: Observable<Record<string, RaisedHandInfo>>,
   reactionsSubject$: Observable<Record<string, ReactionInfo>>,
   trackProcessorState$: Behavior<ProcessorState>,
+  audioProcessorState$: Behavior<AudioProcessorState>,
 ): CallViewModel {
   const client = matrixRoom.client;
   const userId = client.getUserId();
@@ -529,6 +531,7 @@ export function createCallViewModel$(
       options.livekitRoomFactory,
       getUrlParams().echoCancellation,
       getUrlParams().noiseSuppression,
+      audioProcessorState$,
     );
 
   const connectionManager = createConnectionManager$({
@@ -594,6 +597,7 @@ export function createCallViewModel$(
         logger.getChild(
           "[Publisher " + connection.transport.livekit_service_url + "]",
         ),
+        audioProcessorState$,
       );
     },
     connectionManager,

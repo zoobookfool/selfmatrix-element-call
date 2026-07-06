@@ -55,6 +55,7 @@ import {
 } from "../../utils/test-fixtures";
 import { type Behavior, constant } from "../Behavior";
 import { type ProcessorState } from "../../livekit/TrackProcessorContext";
+import { type AudioProcessorState } from "../../livekit/AudioProcessorContext";
 import { type MediaDevices } from "../MediaDevices";
 import { type MatrixRTCMode } from "../../settings/settings";
 
@@ -247,6 +248,10 @@ export function withCallViewModel(mode: MatrixRTCMode) {
       raisedHands$,
       reactions$,
       new BehaviorSubject<ProcessorState>({
+        processor: undefined,
+        supported: undefined,
+      }),
+      new BehaviorSubject<AudioProcessorState>({
         processor: undefined,
         supported: undefined,
       }),
