@@ -16,6 +16,7 @@ import {
   Text,
 } from "@vector-im/compound-web";
 
+import type { TFunction } from "i18next";
 import { FieldRow, InputField } from "../input/Input";
 import {
   showHandRaisedTimer as showHandRaisedTimerSetting,
@@ -33,6 +34,27 @@ const stripPositions: MiniTileStripPosition[] = [
   "left",
   "right",
 ];
+
+// SelfMatrix: i18next-parser can only statically extract t() calls whose
+// first argument is a string literal, so building the key dynamically with a
+// template literal is invisible to it and gets pruned from
+// locales/en/app.json by `pnpm i18n`. Look up the literal key per position
+// instead of constructing it at runtime.
+function miniTileStripPositionLabel(
+  t: TFunction,
+  position: MiniTileStripPosition,
+): string {
+  switch (position) {
+    case "bottom":
+      return t("settings.preferences_tab.mini_tile_strip_position.bottom");
+    case "left":
+      return t("settings.preferences_tab.mini_tile_strip_position.left");
+    case "right":
+      return t("settings.preferences_tab.mini_tile_strip_position.right");
+    case "top":
+      return t("settings.preferences_tab.mini_tile_strip_position.top");
+  }
+}
 
 export const PreferencesSettingsTab: FC = () => {
   const { t } = useTranslation();
@@ -136,11 +158,7 @@ export const PreferencesSettingsTab: FC = () => {
               />
             }
           >
-            <Label>
-              {t(
-                `settings.preferences_tab.mini_tile_strip_position.${position}`,
-              )}
-            </Label>
+            <Label>{miniTileStripPositionLabel(t, position)}</Label>
           </InlineField>
         ))}
       </Form>
