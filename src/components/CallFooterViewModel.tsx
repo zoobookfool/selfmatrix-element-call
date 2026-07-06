@@ -194,6 +194,17 @@ export function createCallFooterViewModel(
       ),
     ),
 
+    // SelfMatrix (UI design notes v1.4, agreement 2/3): grid mode's emphasis
+    // selection toggle.
+    emphasisEnabled$: callModel.emphasisEnabled$,
+    setEmphasisEnabled$: scope.behavior(
+      isPip$.pipe(
+        map((isPip) =>
+          !isPip && showControls ? callModel.setEmphasisEnabled : undefined,
+        ),
+      ),
+    ),
+
     sharingScreen$: callModel.sharingScreen$,
     toggleScreenSharing$: constant(callModel.toggleScreenSharing ?? undefined),
 
@@ -259,12 +270,14 @@ export function createLobbyFooterViewModel(
       toggleAudio: undefined,
       toggleVideo: undefined,
       setLayoutMode: undefined,
+      setEmphasisEnabled: undefined,
       toggleScreenSharing: undefined,
       audioEnabled: undefined,
       audioBusy: false,
       videoEnabled: undefined,
       videoBusy: false,
       layoutMode: undefined,
+      emphasisEnabled: false,
       sharingScreen: false,
       audioOutputSwitcher: undefined,
       reactionIdentifier: undefined,

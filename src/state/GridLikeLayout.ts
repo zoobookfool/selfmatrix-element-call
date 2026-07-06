@@ -37,6 +37,11 @@ export function gridLikeLayout(
       media.type === "spotlight-portrait",
     );
   for (const mediaVm of media.grid) update.registerGridTile(mediaVm);
+  // SelfMatrix (UI design notes v1.4, agreement 2/3): grid mode's emphasis
+  // selection carries a `strip` of tiles demoted out of the main grid; only
+  // GridLayoutMedia has this field.
+  if (media.type === "grid" && media.strip !== undefined)
+    for (const mediaVm of media.strip) update.registerStripTile(mediaVm);
   const tiles = update.build();
 
   return [
@@ -44,6 +49,7 @@ export function gridLikeLayout(
       type: media.type,
       spotlight: tiles.spotlightTile,
       grid: tiles.gridTiles,
+      strip: media.type === "grid" ? tiles.stripTiles : undefined,
       spotlightAlignment$,
       setVisibleTiles,
     } as Layout & { type: GridLikeLayoutType },

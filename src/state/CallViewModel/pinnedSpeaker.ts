@@ -9,7 +9,7 @@ import { combineLatest, Subject, scan } from "rxjs";
 
 import { type Behavior } from "../Behavior";
 import { type ObservableScope } from "../ObservableScope";
-import { type UserMediaViewModel } from "../media/UserMediaViewModel";
+import { type MediaViewModel } from "../media/MediaViewModel";
 
 type PinAction =
   | { type: "set"; id: string | null }
@@ -68,13 +68,14 @@ export function createRequestedPinnedSpeaker$(scope: ObservableScope): {
  * @param scope - The observable scope to manage subscriptions.
  * @param requestedPinnedSpeakerId$ - The raw pin request, from
  * `createRequestedPinnedSpeaker$`.
- * @param userMedia$ - The list of user media currently participating in the
- * call, used to detect when the pinned participant leaves.
+ * @param pinnableMedia$ - The list of media currently eligible to be pinned
+ * (participants and, per UI design notes v1.4 agreement 4, watched screen
+ * shares), used to detect when the pinned item is no longer present.
  */
 export function createPinnedSpeaker$(
   scope: ObservableScope,
   requestedPinnedSpeakerId$: Behavior<string | null>,
-  userMedia$: Behavior<UserMediaViewModel[]>,
+  pinnableMedia$: Behavior<MediaViewModel[]>,
 ): {
   pinnedSpeakerId$: Behavior<string | null>;
 } {
@@ -84,9 +85,9 @@ export function createPinnedSpeaker$(
    */
   const pinnedSpeakerId$ = scope.behavior<string | null>(
     combineLatest(
-      [requestedPinnedSpeakerId$, userMedia$],
-      (pin, userMedia) =>
-        pin !== null && userMedia.some((m) => m.id === pin) ? pin : null,
+      [requestedPinnedSpeakerId$, pinnableMedia$],
+      (pin, pinnableMedia) =>
+        pin !== null && pinnableMedia.some((m) => m.id === pin) ? pin : null,
     ),
   );
 

@@ -55,10 +55,11 @@ export interface RemoteScreenShareInputs extends BaseScreenShareInputs {
   participant$: Behavior<RemoteParticipant | null>;
   pretendToBeDisconnected$: Behavior<boolean>;
   /**
-   * SelfMatrix: whether this screen share's owning member is currently
-   * pinned to the spotlight (requirements MUST: the gazed-at tile gets high
-   * quality, others are degraded). Defaults to always-false (never pinned)
-   * if omitted, e.g. in tests that don't care about quality control.
+   * SelfMatrix (FIX-1): whether *this screen share tile itself* (not its
+   * owning member's user-media tile) is currently pinned to the spotlight
+   * (requirements MUST: the gazed-at tile gets high quality, others are
+   * degraded). Defaults to always-false (never pinned) if omitted, e.g. in
+   * tests that don't care about quality control.
    */
   pinned$?: Behavior<boolean>;
 }
@@ -106,9 +107,7 @@ function applyVideoQuality(
   if (!watching) return;
   if (!(publication instanceof RemoteTrackPublication)) return;
   try {
-    publication.setVideoQuality(
-      pinned ? VideoQuality.HIGH : VideoQuality.LOW,
-    );
+    publication.setVideoQuality(pinned ? VideoQuality.HIGH : VideoQuality.LOW);
   } catch (e) {
     logger.warn(
       "RemoteScreenShareViewModel: failed to set video quality on track publication",

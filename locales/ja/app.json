@@ -95,6 +95,7 @@
     "url_params": "URL パラメータ"
   },
   "disconnected_banner": "サーバーへの接続が失われました。",
+  "emphasis_toggle_label": "強調選択",
   "error": {
     "call_is_not_supported": "通話はサポートされていません",
     "call_not_found": "通話が見つかりません",
@@ -268,6 +269,7 @@
     "camera_starting": "ビデオを読み込んでいます...",
     "change_fit_contain": "フレームに合わせる",
     "collapse": "折りたたむ",
+    "emphasize": "強調",
     "expand": "展開",
     "mute_for_me": "ミュートする",
     "muted_for_me": "自分のみミュート中",
@@ -275,15 +277,15 @@
     "popout_active": "別ウィンドウで表示中",
     "screen_share_toast": "画面共有が開始されました",
     "screen_share_volume": "画面共有の音量",
-    "split_view": "分割表示",
-    "split_view_next": "このペインに次を表示",
     "stop_watching": "視聴をやめる",
+    "unemphasize": "強調を解除",
     "unpin": "スポットライトの固定を解除",
-    "unsplit_view": "分割表示を解除",
     "view_in_spotlight": "スポットライトで見る",
     "volume": "ボリューム",
-    "waiting_for_media": "メディアを待っています...",
-    "watch_stream": "配信を見る",
-    "watch_stream_prompt": "{{displayName}} さんが画面を共有しています"
+    "waiting_for_media": "メディアを待っています..."
+  },
+  "watchable_streams_bar": {
+    "label": "視聴できる配信:",
+    "watch_button": "視聴する"
   }
 }

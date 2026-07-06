@@ -16,6 +16,32 @@ Please see LICENSE in the repository root for full details.
   justify-content: center;
   align-content: center;
   gap: var(--gap);
+  box-sizing: border-box;
+}
+
+/*
+SelfMatrix (FIX-4): when the emphasis-selection mini tile strip is docked to
+an edge (see .stripLayer below), the scrolling grid layer must reserve that
+same footprint via padding so its own tiles never render underneath the
+strip. These pixel sizes must stay in sync with .stripLayer's
+inline-size/block-size below (180px for left/right, 135px for top/bottom),
+and with the STRIP_SIZE_PX constant in GridLayout.tsx that shrinks the area
+passed to arrangeTilesSquare to match.
+*/
+.scrolling[data-strip-position="left"] {
+  padding-inline-start: 180px;
+}
+
+.scrolling[data-strip-position="right"] {
+  padding-inline-end: 180px;
+}
+
+.scrolling[data-strip-position="top"] {
+  padding-block-start: 135px;
+}
+
+.scrolling[data-strip-position="bottom"] {
+  padding-block-end: 135px;
 }
 
 .scrolling > .slot {
@@ -50,4 +76,58 @@ Please see LICENSE in the repository root for full details.
 
 .fixed > .slot[data-inline-alignment="end"] {
   inset-inline-start: unset;
+}
+
+/*
+SelfMatrix (UI design notes v1.4, agreement 2/3): while grid mode's emphasis
+selection narrows the main square-packed grid down to a subset, everything
+else demoted out of it is shown as a mini tile strip docked to one edge, via
+`data-strip-position` (reusing the same convention as
+SpotlightLandscapeLayout's strip).
+*/
+.stripLayer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: var(--gap, 20px);
+  padding: var(--gap, 20px);
+  pointer-events: none;
+}
+
+.stripLayer[data-strip-position="left"],
+.stripLayer[data-strip-position="right"] {
+  flex-direction: column;
+  inline-size: 180px;
+  block-size: 100%;
+}
+
+.stripLayer[data-strip-position="left"] {
+  inset-inline-end: auto;
+}
+
+.stripLayer[data-strip-position="right"] {
+  inset-inline-start: auto;
+}
+
+.stripLayer[data-strip-position="top"],
+.stripLayer[data-strip-position="bottom"] {
+  flex-direction: row;
+  block-size: 135px;
+  inline-size: 100%;
+  justify-content: center;
+}
+
+.stripLayer[data-strip-position="top"] {
+  inset-block-end: auto;
+}
+
+.stripLayer[data-strip-position="bottom"] {
+  inset-block-start: auto;
+}
+
+.stripLayer > .slot {
+  pointer-events: auto;
+  flex: 0 0 auto;
+  inline-size: 150px;
+  block-size: 86px;
 }

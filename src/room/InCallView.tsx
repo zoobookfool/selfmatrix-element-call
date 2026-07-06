@@ -7,6 +7,7 @@ Please see LICENSE in the repository root for full details.
 
 import { type MatrixClient, type Room as MatrixRoom } from "matrix-js-sdk";
 import {
+  type ComponentProps,
   type FC,
   type PointerEvent as ReactPointerEvent,
   useCallback,
@@ -85,6 +86,7 @@ import { type Layout } from "../state/layout-types.ts";
 import { ObservableScope } from "../state/ObservableScope.ts";
 import { useLatest } from "../useLatest.ts";
 import { CallFooter, type FooterSnapshot } from "../components/CallFooter.tsx";
+import { WatchableStreamsBar } from "./WatchableStreamsBar.tsx";
 import { SettingsIconButton } from "../button/Button.tsx";
 import { createCallFooterViewModel } from "../components/CallFooterViewModel.tsx";
 import { type ViewModel } from "../state/ViewModel.ts";
@@ -97,6 +99,41 @@ declare module "react" {
 }
 
 const logger = rootLogger.getChild("[InCallView]");
+
+interface PinnableGridTileProps extends Omit<
+  ComponentProps<typeof PinnableTile>,
+  "emphasized"
+> {
+  /**
+   * SelfMatrix (UI design notes v1.4, agreement 2/3): the full set of
+   * currently emphasized tile ids, from which this tile's own emphasized
+   * state is derived (its media id isn't known until vm.media$ is read).
+   */
+  emphasizedIds: string[];
+}
+
+/**
+ * Thin wrapper around PinnableTile that reads the tile's own media id
+ * reactively (via vm.media$) to determine whether it's in the emphasized
+ * set, since InCallView's Tile component only has the GridTileViewModel
+ * (not its current media) available.
+ */
+const PinnableGridTile: FC<PinnableGridTileProps> = ({
+  vm,
+  emphasizedIds,
+  ...props
+}) => {
+  const media = useBehavior(vm.media$);
+  return (
+    <PinnableTile
+      vm={vm}
+      emphasized={emphasizedIds.includes(media.id)}
+      {...props}
+    />
+  );
+};
+
+PinnableGridTile.displayName = "PinnableGridTile";
 
 export interface ActiveCallProps extends Omit<
   InCallViewProps,
@@ -274,6 +311,7 @@ export const InCallView: FC<InCallViewProps> = ({
 
   const ringing = useBehavior(vm.ringing$);
   const audioParticipants = useBehavior(vm.livekitRoomItems$);
+  const watchableScreenShares = useBehavior(vm.watchableScreenShares$);
   const participantCount = useBehavior(vm.participantCount$);
   const reconnecting = useBehavior(vm.reconnecting$);
   const layout = useBehavior(vm.layout$);
@@ -508,6 +546,8 @@ export const InCallView: FC<InCallViewProps> = ({
         const showGridNameTags = useBehavior(vm.showGridNameTags$);
         const pinnedSpeakerId = useBehavior(vm.pinnedSpeakerId$);
         const gridMode = useBehavior(vm.gridMode$);
+        const emphasisEnabled = useBehavior(vm.emphasisEnabled$);
+        const emphasizedIds = useBehavior(vm.emphasizedIds$);
         const speakerOverlay = (
           <SpeakerOverlay
             members$={vm.overlayMembers$}
@@ -527,7 +567,7 @@ export const InCallView: FC<InCallViewProps> = ({
         };
 
         return model instanceof GridTileViewModel ? (
-          <PinnableTile
+          <PinnableGridTile
             ref={ref}
             vm={model}
             onOpenProfile={openProfile}
@@ -540,6 +580,10 @@ export const InCallView: FC<InCallViewProps> = ({
             focusable={!contentObscured}
             pinnedSpeakerId={pinnedSpeakerId}
             onTogglePinned={onTogglePinned}
+            emphasisEnabled={emphasisEnabled}
+            emphasizedIds={emphasizedIds}
+            onToggleEmphasized={vm.toggleEmphasized}
+            speakerOverlay={speakerOverlay}
           />
         ) : (
           <SpotlightTile
@@ -702,6 +746,9 @@ export const InCallView: FC<InCallViewProps> = ({
           muted={muteAllAudio}
         />
       ))}
+      {layout.type !== "pip" && (
+        <WatchableStreamsBar streams={watchableScreenShares} />
+      )}
       {renderContent()}
       <CallEventAudioRenderer vm={vm} muted={muteAllAudio} />
       <ReactionsAudioRenderer vm={vm} muted={muteAllAudio} />

@@ -31,7 +31,6 @@ import {
   PinSolidIcon,
   PopOutIcon,
   VisibilityOffIcon,
-  SidebarIcon,
 } from "@vector-im/compound-design-tokens/assets/web/icons";
 import { animated } from "@react-spring/web";
 import { type Observable, map } from "rxjs";
@@ -44,7 +43,6 @@ import { Menu, MenuItem } from "@vector-im/compound-web";
 import FullScreenMaximiseIcon from "../icons/FullScreenMaximise.svg?react";
 import FullScreenMinimiseIcon from "../icons/FullScreenMinimise.svg?react";
 import { MediaView } from "./MediaView";
-import { WatchGate } from "./WatchGate";
 import { PopoutActiveOverlay } from "./PopoutActiveOverlay";
 import styles from "./SpotlightTile.module.css";
 import { useInitial } from "../useInitial";
@@ -189,23 +187,18 @@ const SpotlightRemoteScreenShareItem: FC<
   SpotlightRemoteScreenShareItemProps
 > = ({ vm, speakerOverlay, popoutOverlay, ...props }) => {
   const videoEnabled = useBehavior(vm.videoEnabled$);
-  const watching = useBehavior(vm.watching$);
+  // SelfMatrix (UI design notes v1.4, agreement 1/2): screen shares can only
+  // reach the spotlight by being pinned (agreement 4), and only watched
+  // shares are pinnable (they're the only ones with grid tiles at all - see
+  // CallViewModel's grid$/pinnedSpeakerId$) - so a remote screen share shown
+  // here is always already watched. The "視聴できる配信" chip bar
+  // (WatchableStreamsBar) replaces the old per-tile watch gate for unwatched
+  // shares.
   return (
     <SpotlightScreenShareItem
       vm={vm}
       videoEnabled={videoEnabled}
-      overlay={
-        popoutOverlay ??
-        (watching ? (
-          speakerOverlay
-        ) : (
-          <WatchGate
-            displayName={props.displayName}
-            onWatch={() => vm.setWatching(true)}
-            focusable={props.focusable}
-          />
-        ))
-      }
+      overlay={popoutOverlay ?? speakerOverlay}
       {...props}
     />
   );
@@ -543,83 +536,6 @@ export const SpotlightTile: FC<Props> = ({
     <PopoutActiveOverlay onFocus={onFocusPopout} focusable={focusable} />
   ) : undefined;
 
-  // SelfMatrix Slice 6a: when there are 2 or more items in the spotlight
-  // carousel, the user can switch to a "split" mode that shows two of them
-  // side by side instead of paging through them one at a time. Each pane
-  // tracks its own media selection independently, and automatically skips
-  // over whatever the other pane is currently showing.
-  const [split, setSplit] = useState(false);
-  const canSplit = media.length >= 2;
-  // Split mode only makes sense with 2+ items; fall back to the carousel
-  // automatically if the call drops back down to 0 or 1 items in the
-  // spotlight (e.g. a screen share ends).
-  useEffect(() => {
-    if (!canSplit) setSplit(false);
-  }, [canSplit]);
-
-  const [splitPaneIds, setSplitPaneIds] = useReactiveState<
-    [string | undefined, string | undefined]
-  >(
-    (prev) => {
-      const [prevLeft, prevRight] = prev ?? [undefined, undefined];
-      // Keep any still-valid selections; otherwise default the left pane to
-      // whatever the carousel currently has visible, and the right pane to
-      // the next item after it (wrapping, and never matching the left pane).
-      const left =
-        prevLeft !== undefined && media.some((m) => m.id === prevLeft)
-          ? prevLeft
-          : (visibleMedia?.id ?? media[0]?.id);
-      const rightCandidate =
-        prevRight !== undefined && media.some((m) => m.id === prevRight)
-          ? prevRight
-          : undefined;
-      const right =
-        rightCandidate !== undefined && rightCandidate !== left
-          ? rightCandidate
-          : media.find((m) => m.id !== left)?.id;
-      return [left, right];
-    },
-    [media, visibleMedia?.id],
-  );
-  const [splitLeftId, splitRightId] = splitPaneIds;
-  const splitLeftMedia = media.find((m) => m.id === splitLeftId);
-  const splitRightMedia = media.find((m) => m.id === splitRightId);
-
-  /**
-   * Advances a single split pane to the next available media item, cycling
-   * through the full list in order while skipping over the item currently
-   * shown in the other pane.
-   */
-  const advanceSplitPane = useCallback(
-    (pane: "left" | "right") => {
-      setSplitPaneIds(([left, right]) => {
-        const currentId = pane === "left" ? left : right;
-        const otherId = pane === "left" ? right : left;
-        const currentIndex = media.findIndex((m) => m.id === currentId);
-        if (media.length === 0) return [left, right];
-        const order =
-          currentIndex === -1
-            ? media.map((_, i) => i)
-            : media.map((_, i) => (currentIndex + 1 + i) % media.length);
-        const nextId =
-          media[order.find((i) => media[i].id !== otherId) ?? order[0]]?.id;
-        return pane === "left" ? [nextId, right] : [left, nextId];
-      });
-    },
-    [media, setSplitPaneIds],
-  );
-
-  const onSplitLeftNext = useCallback(
-    () => advanceSplitPane("left"),
-    [advanceSplitPane],
-  );
-  const onSplitRightNext = useCallback(
-    () => advanceSplitPane("right"),
-    [advanceSplitPane],
-  );
-
-  const onToggleSplit = useCallback(() => setSplit((s) => !s), []);
-
   const isFullscreen = useCallback((): boolean => {
     const rootElement = document.body;
     if (rootElement && document.fullscreenElement) return true;
@@ -696,7 +612,7 @@ export const SpotlightTile: FC<Props> = ({
       })}
       style={style}
     >
-      {!split && canGoBack && (
+      {canGoBack && (
         <button
           className={classNames(styles.advance, styles.back)}
           aria-label={t("common.back")}
@@ -706,107 +622,29 @@ export const SpotlightTile: FC<Props> = ({
           <ChevronLeftIcon aria-hidden width={24} height={24} />
         </button>
       )}
-      {split ? (
-        <div className={styles.splitContents}>
-          <div className={styles.splitPane} data-testid="split_pane">
-            {splitLeftMedia && (
-              <SpotlightItem
-                key={splitLeftMedia.id}
-                vm={splitLeftMedia}
-                targetWidth={targetWidth / 2}
-                targetHeight={targetHeight}
-                showNameTags={showNameTags}
-                focusable={focusable}
-                intersectionObserver$={undefined}
-                snap={false}
-                speakerOverlay={speakerOverlay}
-                popoutOverlay={
-                  splitLeftMedia.id === visibleMedia?.id
-                    ? popoutOverlay
-                    : undefined
-                }
-              />
-            )}
-            {media.length >= 3 && (
-              <button
-                className={classNames(styles.expand, styles.splitPaneNext)}
-                aria-label={t("video_tile.split_view_next")}
-                data-testid="split_pane_next"
-                onClick={onSplitLeftNext}
-                tabIndex={focusable ? undefined : -1}
-              >
-                <ChevronRightIcon aria-hidden width={20} height={20} />
-              </button>
-            )}
-          </div>
-          <div className={styles.splitPane} data-testid="split_pane">
-            {splitRightMedia && (
-              <SpotlightItem
-                key={splitRightMedia.id}
-                vm={splitRightMedia}
-                targetWidth={targetWidth / 2}
-                targetHeight={targetHeight}
-                showNameTags={showNameTags}
-                focusable={focusable}
-                intersectionObserver$={undefined}
-                snap={false}
-                // The SelfMatrix speaker overlay is only shown on the left
-                // pane, to avoid rendering it twice.
-                speakerOverlay={undefined}
-              />
-            )}
-            {media.length >= 3 && (
-              <button
-                className={classNames(styles.expand, styles.splitPaneNext)}
-                aria-label={t("video_tile.split_view_next")}
-                data-testid="split_pane_next"
-                onClick={onSplitRightNext}
-                tabIndex={focusable ? undefined : -1}
-              >
-                <ChevronRightIcon aria-hidden width={20} height={20} />
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className={styles.contents}>
-          {media.map((vm) => (
-            <SpotlightItem
-              key={vm.id}
-              vm={vm}
-              targetWidth={targetWidth}
-              targetHeight={targetHeight}
-              showNameTags={showNameTags}
-              focusable={focusable}
-              intersectionObserver$={intersectionObserver$}
-              // This is how we get the container to scroll to the right media
-              // when the previous/next buttons are clicked: we temporarily
-              // remove all scroll snap points except for just the one media
-              // that we want to bring into view
-              snap={scrollToId === null || scrollToId === vm.id}
-              aria-hidden={(scrollToId ?? visibleId) !== vm.id}
-              speakerOverlay={vm.id === visibleId ? speakerOverlay : undefined}
-              popoutOverlay={vm.id === visibleId ? popoutOverlay : undefined}
-            />
-          ))}
-        </div>
-      )}
+      <div className={styles.contents}>
+        {media.map((vm) => (
+          <SpotlightItem
+            key={vm.id}
+            vm={vm}
+            targetWidth={targetWidth}
+            targetHeight={targetHeight}
+            showNameTags={showNameTags}
+            focusable={focusable}
+            intersectionObserver$={intersectionObserver$}
+            // This is how we get the container to scroll to the right media
+            // when the previous/next buttons are clicked: we temporarily
+            // remove all scroll snap points except for just the one media
+            // that we want to bring into view
+            snap={scrollToId === null || scrollToId === vm.id}
+            aria-hidden={(scrollToId ?? visibleId) !== vm.id}
+            speakerOverlay={vm.id === visibleId ? speakerOverlay : undefined}
+            popoutOverlay={vm.id === visibleId ? popoutOverlay : undefined}
+          />
+        ))}
+      </div>
 
       <div className={styles.bottomRightButtons}>
-        {canSplit && (
-          <button
-            className={classNames(styles.expand)}
-            aria-label={
-              split ? t("video_tile.unsplit_view") : t("video_tile.split_view")
-            }
-            aria-pressed={split}
-            data-testid="incall_split"
-            onClick={onToggleSplit}
-            tabIndex={focusable ? undefined : -1}
-          >
-            <SidebarIcon aria-hidden width={20} height={20} />
-          </button>
-        )}
         {pinned && onUnpin && (
           <button
             className={classNames(styles.expand)}
@@ -819,7 +657,7 @@ export const SpotlightTile: FC<Props> = ({
             <PinSolidIcon aria-hidden width={20} height={20} />
           </button>
         )}
-        {!split && visibleRemoteScreenShare && watching && (
+        {visibleRemoteScreenShare && watching && (
           <button
             className={classNames(styles.expand)}
             aria-label={t("video_tile.stop_watching")}
@@ -830,10 +668,10 @@ export const SpotlightTile: FC<Props> = ({
             <VisibilityOffIcon aria-hidden width={20} height={20} />
           </button>
         )}
-        {!split &&
-          visibleMedia?.type === "screen share" &&
-          !visibleMedia.local && <ScreenShareVolumeButton vm={visibleMedia} />}
-        {!split && popout && (
+        {visibleMedia?.type === "screen share" && !visibleMedia.local && (
+          <ScreenShareVolumeButton vm={visibleMedia} />
+        )}
+        {popout && (
           <button
             className={classNames(styles.expand)}
             aria-label={"pop out"}
@@ -871,7 +709,7 @@ export const SpotlightTile: FC<Props> = ({
         )}
       </div>
 
-      {!split && canGoToNext && (
+      {canGoToNext && (
         <button
           className={classNames(styles.advance, styles.next)}
           aria-label={t("common.next")}
@@ -881,7 +719,7 @@ export const SpotlightTile: FC<Props> = ({
           <ChevronRightIcon aria-hidden width={24} height={24} />
         </button>
       )}
-      {!split && !expanded && (
+      {!expanded && (
         <div
           className={classNames(styles.indicators, {
             [styles.show]: showIndicators && media.length > 1,

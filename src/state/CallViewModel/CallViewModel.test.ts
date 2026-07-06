@@ -302,12 +302,21 @@ describe.each([
     });
   });
 
-  test("remote screen sharing no longer auto-activates spotlight layout", () => {
-    // SelfMatrix Discord-style shell: screen shares used to force-switch the
-    // layout to spotlight-landscape. That auto-switch has been removed (see
-    // LayoutSwitch.ts) in favour of a dismissible toast, so the layout should
-    // now stay "grid" throughout regardless of screen share activity, and
-    // manual mode selection is the only thing that can enter spotlight.
+  test("unwatched remote screen shares never get grid or spotlight tiles", () => {
+    // SelfMatrix (UI design notes v1.4, agreement 1/2): screen shares are
+    // opt-in - until the local user explicitly opts in to watching a remote
+    // share (RemoteScreenShareViewModel.setWatching(true)), it has no tile at
+    // all (neither in the grid nor embedded in a fixed spotlight slot, unlike
+    // the old "grid mode force-switches everyone into an embedded spotlight"
+    // behaviour this replaces). It only ever surfaces via the "視聴できる
+    //配信" chip bar (watchableScreenShares$, tested separately). Since these
+    // marble-scheduler screen shares are never watched (there is no way to
+    // call setWatching from this harness), the grid/spotlight should be
+    // completely unaffected by the screen-sharing activity below, and the
+    // layout should stay "grid" throughout regardless of screen share
+    // activity - manual mode selection is the only thing that can enter
+    // spotlight (see also LayoutSwitch.ts, which removed the old auto-switch
+    // to spotlight on incoming screen share).
     withTestScheduler(({ behavior, schedule, expectObservable }) => {
       // Start with no screen shares, then have Alice and Bob share their screens,
       // then return to no screen shares, then have just Alice share for a bit
@@ -316,22 +325,20 @@ describe.each([
       // While there are no screen shares, switch to spotlight manually, and then
       // switch back to grid at the end
       const modeInputMarbles = "           -----s--g";
-      // Unlike the old auto-switch behaviour, the layout now stays "grid"
-      // through the entire screen-sharing sequence (a-d): only the
-      // "spotlight" field (used by mini-tiles/pip) reacts to which screen
-      // shares are active. Manually selecting spotlight (e) is now the only
-      // way to reach spotlight-landscape, and it persists until manually
-      // reverted to grid (g), matching plain manual-selection semantics.
-      const expectedLayoutMarbles = "      abcdaefeg";
-      // showSpeakingIndicators$ stays at its grid default (true) for the
-      // entire a-d run since the layout type never leaves "grid" there. Once
-      // manual selection enters spotlight-landscape (e/f/e), it tracks
-      // whether the spotlight is showing a screen share (per
-      // showSpeakingIndicators$'s own rules): false while spotlighting
-      // Alice's plain video (e), true once her screen share takes over (f),
-      // false again when it reverts to her video (e), then back to the grid
-      // default (true) at (g).
-      const expectedShowSpeakingMarbles = "y----nyny";
+      // The grid/spotlight never change in response to screen-sharing
+      // activity (a throughout, though bin ordering shuffles the grid order
+      // - unrelated to this test's concern): grid$ never includes an
+      // unwatched share, and grid layout media's spotlight is always
+      // undefined (agreement 2). Manually selecting spotlight (b, at frame 5)
+      // enters spotlight-landscape with the auto-selected speaker (Alice),
+      // and it persists until manually reverted to grid (c, at frame 8).
+      const expectedLayoutMarbles = "      a----b--c";
+      // showSpeakingIndicators$ is true at its grid default (frame 0), then
+      // false while spotlight-landscape shows Alice's plain video rather than
+      // a screen share (frame 5 - speaking indicators are redundant when the
+      // spotlight already shows the active speaker), then back to true once
+      // reverted to grid (frame 8).
+      const expectedShowSpeakingMarbles = "y----n--y";
       withCallViewModel(
         {
           remoteParticipants$: constant([aliceParticipant, bobParticipant]),
@@ -356,34 +363,11 @@ describe.each([
                 grid: [`${localId}:0`, `${aliceId}:0`, `${bobId}:0`],
               },
               b: {
-                type: "grid",
-                spotlight: [`${aliceId}:0:screen-share`],
-                grid: [`${localId}:0`, `${aliceId}:0`, `${bobId}:0`],
-              },
-              c: {
-                type: "grid",
-                spotlight: [
-                  `${aliceId}:0:screen-share`,
-                  `${bobId}:0:screen-share`,
-                ],
-                grid: [`${localId}:0`, `${aliceId}:0`, `${bobId}:0`],
-              },
-              d: {
-                type: "grid",
-                spotlight: [`${bobId}:0:screen-share`],
-                grid: [`${localId}:0`, `${aliceId}:0`, `${bobId}:0`],
-              },
-              e: {
                 type: "spotlight-landscape",
                 spotlight: [`${aliceId}:0`],
                 grid: [`${localId}:0`, `${bobId}:0`],
               },
-              f: {
-                type: "spotlight-landscape",
-                spotlight: [`${aliceId}:0:screen-share`],
-                grid: [`${localId}:0`, `${bobId}:0`, `${aliceId}:0`],
-              },
-              g: {
+              c: {
                 type: "grid",
                 spotlight: undefined,
                 grid: [`${localId}:0`, `${bobId}:0`, `${aliceId}:0`],
@@ -448,7 +432,12 @@ describe.each([
     });
   });
 
-  test("local screen sharing stays in grid layout", () => {
+  test("local screen sharing is mixed into the grid as an ordinary tile", () => {
+    // SelfMatrix (UI design notes v1.4, agreement 1/2): the local user's own
+    // screen share is always considered "watched" (there's no opt-in gate for
+    // your own stream), so it gets an ordinary grid tile alongside
+    // participants rather than a fixed embedded spotlight slot (which no
+    // longer exists in grid mode - see CallViewModel's gridLayoutMedia$).
     withTestScheduler(({ behavior, expectObservable }) => {
       // Local participant shares their screen, then stops sharing
       const sharingInputMarbles = "  nyn";
@@ -473,8 +462,13 @@ describe.each([
               },
               b: {
                 type: "grid",
-                spotlight: [`${localId}:0:screen-share`],
-                grid: [`${localId}:0`, `${aliceId}:0`, `${bobId}:0`],
+                spotlight: undefined,
+                grid: [
+                  `${localId}:0`,
+                  `${aliceId}:0`,
+                  `${bobId}:0`,
+                  `${localId}:0:screen-share`,
+                ],
               },
             },
           );
@@ -508,8 +502,12 @@ describe.each([
               },
               b: {
                 type: "grid",
-                spotlight: [`${localId}:0:screen-share`],
-                grid: [`${localId}:0`, `${aliceId}:0`],
+                spotlight: undefined,
+                grid: [
+                  `${localId}:0`,
+                  `${aliceId}:0`,
+                  `${localId}:0:screen-share`,
+                ],
               },
             },
           );
@@ -544,9 +542,10 @@ describe.each([
             expectedNewScreenShareMarbles,
             { y: "y" },
           );
-          expectObservable(
-            vm.newRemoteScreenShare$.pipe(map(() => "y")),
-          ).toBe(expectedNewRemoteScreenShareMarbles, { y: "y" });
+          expectObservable(vm.newRemoteScreenShare$.pipe(map(() => "y"))).toBe(
+            expectedNewRemoteScreenShareMarbles,
+            { y: "y" },
+          );
         },
       );
     });
@@ -999,7 +998,17 @@ describe.each([
     },
   );
 
-  test("PiP tile in expanded spotlight layout switches speakers without layout shifts", () => {
+  test("PiP tile in expanded spotlight layout stays stable while the spotlight speaker switches", () => {
+    // SelfMatrix (UI design notes v1.4, agreement 2/4): screen shares no
+    // longer force everyone into the spotlight with the auto-selected
+    // speaker relegated to the PiP (that whole mechanism depended on the old
+    // "grid mode force-switches into embedded spotlight" behaviour this
+    // removes - see spotlightAndPip$). The PiP now only ever shows the local
+    // user (or nothing, if redundant with the spotlight or hidden). This test
+    // now covers the still-relevant part: as the auto-selected spotlight
+    // speaker switches back and forth between Bob and Dave, the PiP tile
+    // (always the local user here) must stay the *same* tile without any
+    // layout shift, exercising TileStore's PiP tile reuse logic.
     withTestScheduler(({ behavior, schedule, expectObservable }) => {
       // Switch to spotlight immediately
       const modeInputMarbles = "     s";
@@ -1008,8 +1017,8 @@ describe.each([
       // First Bob speaks, then Dave, then Bob again
       const bSpeakingInputMarbles = "n-yn--yn";
       const dSpeakingInputMarbles = "n---yn";
-      // Should show Alice (presenter) in the PiP, then Bob, then Dave, then Bob
-      // again
+      // Should show Alice (default) in the spotlight, then Bob, then Dave,
+      // then Bob again - with the local user steady in the PiP throughout.
       const expectedLayoutMarbles = "a-b-c-b";
 
       withCallViewModel(
@@ -1029,7 +1038,6 @@ describe.each([
             [bobParticipant, behavior(bSpeakingInputMarbles, yesNo)],
             [daveParticipant, behavior(dSpeakingInputMarbles, yesNo)],
           ]),
-          sharingScreen: new Map([[aliceParticipant, constant(true)]]),
         },
         (vm) => {
           schedule(modeInputMarbles, {
@@ -1044,28 +1052,29 @@ describe.each([
             {
               a: {
                 type: "spotlight-expanded",
-                spotlight: [`${aliceId}:0:screen-share`],
-                pip: `${aliceId}:0`,
+                spotlight: [`${aliceId}:0`],
+                pip: `${localId}:0`,
               },
               b: {
                 type: "spotlight-expanded",
-                spotlight: [`${aliceId}:0:screen-share`],
-                pip: `${bobId}:0`,
+                spotlight: [`${bobId}:0`],
+                pip: `${localId}:0`,
               },
               c: {
                 type: "spotlight-expanded",
-                spotlight: [`${aliceId}:0:screen-share`],
-                pip: `${daveId}:0`,
+                spotlight: [`${daveId}:0`],
+                pip: `${localId}:0`,
               },
             },
           );
 
-          // While we expect the media on the PiP tile to change, layout$ itself
-          // should *never* meaningfully change. That is, we expect the same PiP
-          // tile to exist throughout the test and just have its media swapped out
-          // when the speaker changes, rather than for tiles to animate in/out.
-          // This is meaningful for keeping the interface not too visually
-          // distracting during back-and-forth conversations.
+          // While we expect the media in the spotlight to change, layout$
+          // itself should *never* meaningfully change. That is, we expect the
+          // same PiP tile to exist throughout the test and just have its
+          // media swapped out when the speaker changes, rather than for
+          // tiles to animate in/out. This is meaningful for keeping the
+          // interface not too visually distracting during back-and-forth
+          // conversations.
           expectObservable(
             vm.layout$.pipe(
               distinctUntilChanged(deepCompare),

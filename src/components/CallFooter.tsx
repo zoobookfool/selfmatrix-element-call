@@ -11,7 +11,7 @@ import {
   SpotlightIcon,
   GridIcon,
 } from "@vector-im/compound-design-tokens/assets/web/icons";
-import { Switch } from "@vector-im/compound-web";
+import { CheckboxInput, Switch } from "@vector-im/compound-web";
 import { t } from "i18next";
 
 import LogoMark from "../icons/LogoMark.svg?react";
@@ -63,6 +63,13 @@ export interface FooterActions {
   toggleBlur: (() => void) | undefined;
   /** Also controls if the layout button is visible */
   setLayoutMode: ((mode: GridMode) => void) | undefined;
+  /**
+   * SelfMatrix (UI design notes v1.4, agreement 2/3): sets whether grid
+   * mode's emphasis selection is turned on. Also controls whether the
+   * emphasis toggle is visible (undefined hides it, e.g. while not in grid
+   * mode).
+   */
+  setEmphasisEnabled: ((enabled: boolean) => void) | undefined;
   toggleScreenSharing: (() => void) | undefined;
   /** Also controls if the settings button is visible */
   openSettings: (() => void) | undefined;
@@ -92,6 +99,12 @@ export interface FooterState {
   hideVideoButton: boolean;
 
   layoutMode: GridMode | undefined;
+  /**
+   * SelfMatrix (UI design notes v1.4, agreement 2/3): whether grid mode's
+   * emphasis selection is currently turned on. Only meaningful (and the
+   * toggle only shown) while layoutMode === "grid".
+   */
+  emphasisEnabled: boolean;
 
   sharingScreen: boolean;
 
@@ -127,6 +140,8 @@ export const CallFooter: FC<FooterProps> = ({ ref, children, vm }) => {
   const hideVideoButton = useBehavior(vm.hideVideoButton$);
   const layoutMode = useBehavior(vm.layoutMode$);
   const setLayoutMode = useBehavior(vm.setLayoutMode$);
+  const emphasisEnabled = useBehavior(vm.emphasisEnabled$);
+  const setEmphasisEnabled = useBehavior(vm.setEmphasisEnabled$);
   const openSettings = useBehavior(vm.openSettings$);
   const audioEnabled = useBehavior(vm.audioEnabled$);
   const audioBusy = useBehavior(vm.audioBusy$);
@@ -318,19 +333,33 @@ export const CallFooter: FC<FooterProps> = ({ ref, children, vm }) => {
       </div>
       {!hideControls && <div className={styles.buttons}>{buttons}</div>}
       {!hideControls && setLayoutMode && layoutMode && (
-        <Switch<"spotlight", "grid">
-          name="layoutMode"
-          aria-label={t("layout_switch_label")}
-          leftLabel={t("layout_spotlight_label")}
-          leftValue="spotlight"
-          leftIcon={SpotlightIcon}
-          rightLabel={t("layout_grid_label")}
-          rightValue="grid"
-          rightIcon={GridIcon}
-          className={styles.layout}
-          value={layoutMode}
-          onChange={setLayoutMode}
-        />
+        <div className={styles.layout}>
+          {layoutMode === "grid" && setEmphasisEnabled && (
+            <div className={styles.emphasisToggle}>
+              <CheckboxInput
+                id="emphasisToggleInput"
+                checked={emphasisEnabled}
+                data-testid="emphasis_toggle"
+                onChange={(e) => setEmphasisEnabled(e.target.checked)}
+              />
+              <label htmlFor="emphasisToggleInput">
+                {t("emphasis_toggle_label")}
+              </label>
+            </div>
+          )}
+          <Switch<"spotlight", "grid">
+            name="layoutMode"
+            aria-label={t("layout_switch_label")}
+            leftLabel={t("layout_spotlight_label")}
+            leftValue="spotlight"
+            leftIcon={SpotlightIcon}
+            rightLabel={t("layout_grid_label")}
+            rightValue="grid"
+            rightIcon={GridIcon}
+            value={layoutMode}
+            onChange={setLayoutMode}
+          />
+        </div>
       )}
     </div>
   );

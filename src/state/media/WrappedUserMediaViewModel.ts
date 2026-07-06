@@ -90,11 +90,18 @@ interface WrappedUserMediaInputs extends Omit<
   mediaDevices: MediaDevices;
   pretendToBeDisconnected$: Behavior<boolean>;
   /**
-   * SelfMatrix: whether this member is currently pinned to the spotlight
-   * (requirements MUST). Forwarded to this member's remote screen share (if
-   * any) so it can prioritize its subscribed video quality accordingly.
+   * SelfMatrix (FIX-1): the raw (presence-unaware) spotlight pin request id,
+   * i.e. `requestedPinnedSpeakerId$`. This is *not* "is this member pinned" -
+   * it's the id the user last asked to pin, which could be this member's own
+   * id, or a screen share tile's id (`${mediaId}:screen-share`), or someone
+   * else's entirely. We compare it against each screen share's own tile id
+   * (computed below, once it's known) rather than against this member's id,
+   * so that pinning a screen share tile actually raises *that* tile's
+   * quality, and pinning the member tile doesn't spuriously raise an
+   * unrelated screen share's quality (requirements MUST: the gazed-at tile
+   * gets high quality, others are degraded).
    */
-  pinned$?: Behavior<boolean>;
+  requestedPinnedSpeakerId$?: Behavior<string | null>;
 }
 
 export function createWrappedUserMedia(
@@ -103,7 +110,7 @@ export function createWrappedUserMedia(
     participant,
     mediaDevices,
     pretendToBeDisconnected$,
-    pinned$,
+    requestedPinnedSpeakerId$,
     ...inputs
   }: WrappedUserMediaInputs,
 ): WrappedUserMediaViewModel {
@@ -161,7 +168,18 @@ export function createWrappedUserMedia(
                         id,
                         participant$: participant.value$,
                         pretendToBeDisconnected$,
-                        pinned$,
+                        // SelfMatrix (FIX-1): this screen share tile's own
+                        // pinned$, derived by comparing the raw pin request
+                        // against *this tile's* id (not the owning member's
+                        // id) - see the doc comment on
+                        // requestedPinnedSpeakerId$ above.
+                        pinned$: requestedPinnedSpeakerId$
+                          ? scope.behavior(
+                              requestedPinnedSpeakerId$.pipe(
+                                map((pin) => pin === id),
+                              ),
+                            )
+                          : undefined,
                       });
                 },
               ),

@@ -17,6 +17,7 @@ import {
   mockRtcMembership,
   mockRemoteMedia,
   mockRemoteParticipant,
+  mockRemoteScreenShare,
 } from "../utils/test";
 import { GridTileViewModel } from "../state/TileViewModel";
 import { ReactionsSenderProvider } from "../reactions/useReactionsSender";
@@ -123,4 +124,43 @@ test("GridTile displays ringing media", async () => {
   // Alice declines the call
   act(() => pickupState$.next("decline"));
   screen.getByText("Call ended");
+});
+
+test("GridTile displays a watched remote screen share as an ordinary tile", async () => {
+  // SelfMatrix (UI design notes v1.4, agreement 1/2): watched screen shares
+  // ("配信") are mixed into the grid as ordinary tiles - GridTile must be
+  // able to render them directly (not just user/ringing media). Only
+  // watched shares ever reach the grid (see CallViewModel's grid$/
+  // watchedScreenShares$), so this always shows the "stop watching" control,
+  // never a watch gate.
+  const vm = mockRemoteScreenShare(
+    mockRtcMembership("@alice:example.org", "AAAA"),
+    { rawDisplayName: "Alice" },
+    mockRemoteParticipant({}),
+  );
+  vm.setWatching(true);
+
+  const { container } = render(
+    <ReactionsSenderProvider vm={callVm} rtcSession={fakeRtcSession}>
+      <GridTile
+        vm={new GridTileViewModel(constant(vm))}
+        onOpenProfile={() => {}}
+        targetWidth={300}
+        targetHeight={200}
+        showSpeakingIndicators
+        showNameTags
+        focusable
+      />
+    </ReactionsSenderProvider>,
+  );
+  expect(await axe(container)).toHaveNoViolations();
+
+  screen.getByText("Alice");
+  const unwatchButton = screen.getByTestId("incall_unwatch");
+  expect(unwatchButton).toBeInTheDocument();
+
+  act(() => {
+    unwatchButton.click();
+  });
+  expect(vm.watching$.value).toBe(false);
 });

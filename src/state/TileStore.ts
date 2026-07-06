@@ -13,7 +13,6 @@ import { fillGaps } from "../utils/iter";
 import { debugTileLayout } from "../settings/settings";
 import { type MediaViewModel } from "./media/MediaViewModel";
 import { type UserMediaViewModel } from "./media/UserMediaViewModel";
-import { type RingingMediaViewModel } from "./media/RingingMediaViewModel";
 
 function debugEntries(entries: GridTileData[]): string[] {
   return entries.map((e) => e.media.displayName$.value);
@@ -49,19 +48,17 @@ class SpotlightTileData {
 }
 
 class GridTileData {
-  private readonly media$: BehaviorSubject<
-    UserMediaViewModel | RingingMediaViewModel
-  >;
-  public get media(): UserMediaViewModel | RingingMediaViewModel {
+  private readonly media$: BehaviorSubject<MediaViewModel>;
+  public get media(): MediaViewModel {
     return this.media$.value;
   }
-  public set media(value: UserMediaViewModel) {
+  public set media(value: MediaViewModel) {
     this.media$.next(value);
   }
 
   public readonly vm: GridTileViewModel;
 
-  public constructor(media: UserMediaViewModel | RingingMediaViewModel) {
+  public constructor(media: MediaViewModel) {
     this.media$ = new BehaviorSubject(media);
     this.vm = new GridTileViewModel(this.media$);
   }
@@ -75,6 +72,12 @@ export class TileStore {
     private readonly spotlight: SpotlightTileData | null,
     private readonly grid: GridTileData[],
     /**
+     * SelfMatrix (UI design notes v1.4, agreement 2/3): tiles demoted to the
+     * mini tile strip while grid mode's emphasis selection narrows the main
+     * grid down to just the selected tiles. See `registerStripTile`.
+     */
+    private readonly strip: GridTileData[],
+    /**
      * A number incremented on each update, just for debugging purposes.
      */
     public readonly generation: number,
@@ -85,12 +88,13 @@ export class TileStore {
   public readonly gridTilesByMedia = new Map(
     this.grid.map(({ vm, media }) => [media, vm]),
   );
+  public readonly stripTiles = this.strip.map(({ vm }) => vm);
 
   /**
    * Creates an an empty collection of tiles.
    */
   public static empty(): TileStore {
-    return new TileStore(null, [], 0);
+    return new TileStore(null, [], [], 0);
   }
 
   /**
@@ -101,7 +105,9 @@ export class TileStore {
     return new TileStoreBuilder(
       this.spotlight,
       this.grid,
-      (spotlight, grid) => new TileStore(spotlight, grid, this.generation + 1),
+      this.strip,
+      (spotlight, grid, strip) =>
+        new TileStore(spotlight, grid, strip, this.generation + 1),
       visibleTiles,
       this.generation,
     );
@@ -127,6 +133,10 @@ export class TileStoreBuilder {
     this.prevGrid.map((entry, i) => [entry.media, [entry, i]] as const),
   );
 
+  private readonly prevStripByMedia: Map<MediaViewModel, GridTileData> =
+    new Map(this.prevStrip.map((entry) => [entry.media, entry]));
+  private readonly stripEntries: GridTileData[] = [];
+
   // The total number of grid entries that we have so far
   private numGridEntries = 0;
   // A sparse array of grid entries which should be kept in the same spots as
@@ -142,9 +152,11 @@ export class TileStoreBuilder {
   public constructor(
     private readonly prevSpotlight: SpotlightTileData | null,
     private readonly prevGrid: GridTileData[],
+    private readonly prevStrip: GridTileData[],
     private readonly construct: (
       spotlight: SpotlightTileData | null,
       grid: GridTileData[],
+      strip: GridTileData[],
     ) => TileStore,
     private readonly visibleTiles: number,
     /**
@@ -180,10 +192,12 @@ export class TileStoreBuilder {
   /**
    * Sets up a grid tile for the given media. If this is never called for some
    * media, then that media will have no grid tile.
+   *
+   * SelfMatrix (UI design notes v1.4): widened to accept any `MediaViewModel`
+   * (not just user/ringing media), since watched screen shares are now mixed
+   * directly into the grid.
    */
-  public registerGridTile(
-    media: UserMediaViewModel | RingingMediaViewModel,
-  ): void {
+  public registerGridTile(media: MediaViewModel): void {
     if (DEBUG_ENABLED)
       logger.debug(
         `[TileStore, ${this.generation}] register grid tile: ${media.displayName$.value}`,
@@ -240,11 +254,30 @@ export class TileStoreBuilder {
     // Was there previously a tile with this same media?
     const prev = this.prevGridByMedia.get(media);
     if (prev === undefined) {
-      // Create a new tile
-      (this.numGridEntries < this.visibleTiles
-        ? this.visibleGridEntries
-        : this.invisibleGridEntries
-      ).push(new GridTileData(media));
+      // SelfMatrix (FIX-2): the media may have previously been in the mini
+      // tile strip rather than the main grid (e.g. emphasis selection was
+      // just toggled, moving this tile from strip to grid). Reuse that
+      // tile's GridTileData/vm rather than minting a new one, so the tile
+      // doesn't unmount/remount (and its vm.id - and any associated DOM/CSS
+      // transition state - stays stable across the grid<->strip move).
+      const prevStripEntry = this.prevStripByMedia.get(media);
+      if (prevStripEntry !== undefined) {
+        // Consume it so it can't also be reused by a later
+        // registerStripTile call for the same media (shouldn't normally
+        // happen - each media is registered on one side or the other - but
+        // guards against double-use if it ever did).
+        this.prevStripByMedia.delete(media);
+        (this.numGridEntries < this.visibleTiles
+          ? this.visibleGridEntries
+          : this.invisibleGridEntries
+        ).push(prevStripEntry);
+      } else {
+        // Create a new tile
+        (this.numGridEntries < this.visibleTiles
+          ? this.visibleGridEntries
+          : this.invisibleGridEntries
+        ).push(new GridTileData(media));
+      }
     } else {
       // Reuse the existing tile
       const [entry, prevIndex] = prev;
@@ -262,6 +295,48 @@ export class TileStoreBuilder {
     }
 
     this.numGridEntries++;
+  }
+
+  /**
+   * SelfMatrix (UI design notes v1.4, agreement 2/3): sets up a mini tile
+   * strip tile for the given media (a tile demoted out of the main grid by
+   * emphasis selection). Reuses the previous strip tile for the same media if
+   * one exists, so unselected tiles don't flicker/remount as the emphasis
+   * selection changes. Unlike the main grid, strip tiles are never virtualized
+   * (there are normally few enough that this isn't a concern).
+   *
+   * SelfMatrix (FIX-2): also falls back to reusing a tile that was previously
+   * in the main grid (rather than the strip), so that toggling emphasis
+   * selection - which moves media between grid and strip - reuses the same
+   * underlying tile/vm instead of destroying and recreating it (which would
+   * cause an undesirable unmount/mount animation).
+   */
+  public registerStripTile(media: MediaViewModel): void {
+    if (DEBUG_ENABLED)
+      logger.debug(
+        `[TileStore, ${this.generation}] register strip tile: ${media.displayName$.value}`,
+      );
+
+    const prev = this.prevStripByMedia.get(media);
+    if (prev !== undefined) {
+      this.stripEntries.push(prev);
+      return;
+    }
+
+    // Fall back to a tile that was previously in the main grid for this same
+    // media (see FIX-2 doc comment above). Consume it from prevGridByMedia so
+    // registerGridTile can't also try to reuse it as stationary/moved grid
+    // entry for the same media (shouldn't normally happen, since media is
+    // only ever registered on one side per builder pass, but this keeps the
+    // bookkeeping consistent either way).
+    const prevGridEntry = this.prevGridByMedia.get(media);
+    if (prevGridEntry !== undefined) {
+      this.prevGridByMedia.delete(media);
+      this.stripEntries.push(prevGridEntry[0]);
+      return;
+    }
+
+    this.stripEntries.push(new GridTileData(media));
   }
 
   /**
@@ -319,6 +394,6 @@ export class TileStoreBuilder {
       );
     }
 
-    return this.construct(this.spotlight, grid);
+    return this.construct(this.spotlight, grid, this.stripEntries);
   }
 }

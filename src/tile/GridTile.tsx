@@ -26,6 +26,7 @@ import {
   VolumeOnIcon,
   VolumeOffIcon,
   VisibilityOnIcon,
+  VisibilityOffIcon,
   UserProfileIcon,
   VolumeOffSolidIcon,
   SwitchCameraSolidIcon,
@@ -53,6 +54,7 @@ import { type LocalUserMediaViewModel } from "../state/media/LocalUserMediaViewM
 import { type RemoteUserMediaViewModel } from "../state/media/RemoteUserMediaViewModel";
 import { type UserMediaViewModel } from "../state/media/UserMediaViewModel";
 import { type RingingMediaViewModel } from "../state/media/RingingMediaViewModel";
+import { type ScreenShareViewModel } from "../state/media/ScreenShareViewModel";
 
 interface TileProps {
   ref?: Ref<HTMLDivElement>;
@@ -390,6 +392,74 @@ const RemoteUserMediaTile: FC<RemoteUserMediaTileProps> = ({
 
 RemoteUserMediaTile.displayName = "RemoteUserMediaTile";
 
+interface ScreenShareTileProps extends TileProps {
+  vm: ScreenShareViewModel;
+  /**
+   * The SelfMatrix speaker overlay (Slice 5), shown on top of the tile.
+   */
+  speakerOverlay?: ReactNode;
+}
+
+/**
+ * SelfMatrix (UI design notes v1.4, agreement 1/2): a screen share ("配信")
+ * shown as an ordinary grid tile. Only ever rendered for shares the local
+ * user has opted in to watching (or their own share, which is always
+ * "watched") - grid$ never contains an unwatched remote share, so there is
+ * no watch gate here (contrast with SpotlightTile's
+ * SpotlightRemoteScreenShareItem, which can show either).
+ */
+const ScreenShareTile: FC<ScreenShareTileProps> = ({
+  ref,
+  vm,
+  speakerOverlay,
+  className,
+  displayName,
+  mxcAvatarUrl,
+  focusable,
+  targetWidth,
+  targetHeight,
+  ...props
+}) => {
+  const { t } = useTranslation();
+  const video = useBehavior(vm.video$);
+  const unencryptedWarning = useBehavior(vm.unencryptedWarning$);
+
+  const stopWatchingButton = !vm.local ? (
+    <button
+      className={styles.switchCamera}
+      aria-label={t("video_tile.stop_watching")}
+      data-testid="incall_unwatch"
+      onClick={() => vm.setWatching(false)}
+      tabIndex={focusable ? undefined : -1}
+    >
+      <VisibilityOffIcon aria-hidden width={20} height={20} />
+    </button>
+  ) : undefined;
+
+  return (
+    <MediaView
+      ref={ref}
+      video={video}
+      userId={vm.userId}
+      unencryptedWarning={unencryptedWarning}
+      videoEnabled
+      videoFit="contain"
+      mirror={false}
+      className={classNames(className, styles.tile)}
+      displayName={displayName}
+      mxcAvatarUrl={mxcAvatarUrl}
+      focusable={focusable}
+      targetWidth={targetWidth}
+      targetHeight={targetHeight}
+      primaryButton={stopWatchingButton}
+      overlay={speakerOverlay}
+      {...props}
+    />
+  );
+};
+
+ScreenShareTile.displayName = "ScreenShareTile";
+
 interface GridTileProps {
   ref?: Ref<HTMLDivElement>;
   vm: GridTileViewModel;
@@ -401,6 +471,11 @@ interface GridTileProps {
   showSpeakingIndicators: boolean;
   showNameTags: boolean;
   focusable: boolean;
+  /**
+   * The SelfMatrix speaker overlay (Slice 5), shown on top of a screen share
+   * tile. Ignored for user/ringing media tiles.
+   */
+  speakerOverlay?: ReactNode;
   // The following are passed straight through to the tile's root element, to
   // allow wrapping components (e.g. PinnableTile) to make the whole tile
   // interactive without needing to duplicate its DOM structure.
@@ -412,6 +487,8 @@ interface GridTileProps {
   "aria-label"?: ComponentProps<"div">["aria-label"];
   "data-testid"?: string;
   "data-pinned"?: boolean;
+  "data-emphasis-interactive"?: boolean;
+  "data-emphasized"?: boolean;
 }
 
 export const GridTile: FC<GridTileProps> = ({
@@ -419,6 +496,7 @@ export const GridTile: FC<GridTileProps> = ({
   vm,
   showSpeakingIndicators,
   onOpenProfile,
+  speakerOverlay,
   ...props
 }) => {
   const ourRef = useRef<HTMLDivElement | null>(null);
@@ -432,6 +510,17 @@ export const GridTile: FC<GridTileProps> = ({
       <RingingMediaTile
         ref={ref}
         vm={media}
+        displayName={displayName}
+        mxcAvatarUrl={mxcAvatarUrl}
+        {...props}
+      />
+    );
+  } else if (media.type === "screen share") {
+    return (
+      <ScreenShareTile
+        ref={ref}
+        vm={media}
+        speakerOverlay={speakerOverlay}
         displayName={displayName}
         mxcAvatarUrl={mxcAvatarUrl}
         {...props}

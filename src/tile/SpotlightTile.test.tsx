@@ -150,12 +150,20 @@ test("Screen share volume UI is hidden when screen share has no audio", async ()
   ).not.toBeInTheDocument();
 });
 
-test("Remote screen share shows a watch gate until the user opts in", async () => {
+test("Remote screen share in the spotlight is always shown as watched (no watch gate)", async () => {
+  // SelfMatrix (UI design notes v1.4, agreement 1/2/4): a screen share can
+  // only reach the spotlight by being pinned, and only watched shares are
+  // pinnable at all (unwatched shares have no tile - see grid$/
+  // pinnedSpeakerId$ in CallViewModel and the "視聴できる配信" chip bar,
+  // WatchableStreamsBar). So SpotlightTile never needs to show a watch gate;
+  // it always renders the share as already watched, with the "stop
+  // watching" control available instead.
   const vm = mockRemoteScreenShare(
     mockRtcMembership("@alice:example.org", "AAAA"),
     { rawDisplayName: "Alice" },
     mockRemoteParticipant({}),
   );
+  vm.setWatching(true);
 
   const user = userEvent.setup();
   const toggleExpanded = vi.fn();
@@ -176,17 +184,6 @@ test("Remote screen share shows a watch gate until the user opts in", async () =
 
   expect(await axe(container)).toHaveNoViolations();
 
-  // Not watching yet: the gate is shown, and there is no unwatch/popout button
-  const watchButton = screen.getByTestId("incall_watch");
-  expect(watchButton).toBeInTheDocument();
-  expect(screen.queryByTestId("incall_unwatch")).not.toBeInTheDocument();
-  expect(vm.watching$.value).toBe(false);
-
-  await user.click(watchButton);
-
-  // Opting in flips the view model's watching state and swaps the gate for
-  // the "stop watching" control.
-  expect(vm.watching$.value).toBe(true);
   expect(screen.queryByTestId("incall_watch")).not.toBeInTheDocument();
   const unwatchButton = screen.getByTestId("incall_unwatch");
   expect(unwatchButton).toBeInTheDocument();
@@ -194,181 +191,6 @@ test("Remote screen share shows a watch gate until the user opts in", async () =
   await user.click(unwatchButton);
 
   expect(vm.watching$.value).toBe(false);
-  expect(screen.getByTestId("incall_watch")).toBeInTheDocument();
-});
-
-test("Split toggle is hidden with a single spotlight item", () => {
-  const vm1 = mockRemoteMedia(
-    mockRtcMembership("@alice:example.org", "AAAA"),
-    { rawDisplayName: "Alice" },
-    mockRemoteParticipant({}),
-  );
-
-  const toggleExpanded = vi.fn();
-  render(
-    <SpotlightTile
-      vm={new SpotlightTileViewModel(constant([vm1]), constant(false))}
-      targetWidth={300}
-      targetHeight={200}
-      expanded={false}
-      onToggleExpanded={toggleExpanded}
-      showIndicators
-      showNameTags
-      focusable={true}
-    />,
-  );
-
-  expect(screen.queryByTestId("incall_split")).not.toBeInTheDocument();
-});
-
-test("Split mode shows two panes that each render an existing spotlight item", async () => {
-  const vm1 = mockRemoteMedia(
-    mockRtcMembership("@alice:example.org", "AAAA"),
-    { rawDisplayName: "Alice" },
-    mockRemoteParticipant({}),
-  );
-
-  const vm2 = mockLocalMedia(
-    mockRtcMembership("@bob:example.org", "BBBB"),
-    { rawDisplayName: "Bob" },
-    mockLocalParticipant({}),
-    mockMediaDevices({}),
-  );
-
-  const user = userEvent.setup();
-  const toggleExpanded = vi.fn();
-  const { container } = render(
-    <SpotlightTile
-      vm={new SpotlightTileViewModel(constant([vm1, vm2]), constant(false))}
-      targetWidth={300}
-      targetHeight={200}
-      expanded={false}
-      onToggleExpanded={toggleExpanded}
-      showIndicators
-      showNameTags
-      focusable={true}
-    />,
-  );
-
-  // Split button only appears once there are 2+ items in the spotlight.
-  const splitButton = screen.getByTestId("incall_split");
-  expect(splitButton).toHaveAttribute("aria-pressed", "false");
-
-  await user.click(splitButton);
-
-  expect(await axe(container)).toHaveNoViolations();
-  expect(splitButton).toHaveAttribute("aria-pressed", "true");
-
-  // Both panes should be present, and both Alice and Bob should be visible
-  // at once (unlike the carousel, where only one item is visible).
-  const panes = screen.getAllByTestId("split_pane");
-  expect(panes).toHaveLength(2);
-  expect(isInaccessible(screen.getByText("Alice"))).toBe(false);
-  expect(isInaccessible(screen.getByText("Bob"))).toBe(false);
-
-  // The carousel's back/next/indicator controls are not relevant while split.
-  expect(screen.queryByRole("button", { name: "common.back" })).toBe(null);
-  expect(screen.queryByRole("button", { name: "Next" })).toBe(null);
-
-  // Clicking again returns to the single-pane carousel.
-  await user.click(splitButton);
-  expect(splitButton).toHaveAttribute("aria-pressed", "false");
-  expect(screen.queryAllByTestId("split_pane")).toHaveLength(0);
-});
-
-test("Split mode auto-disables once the spotlight drops to a single item", async () => {
-  const vm1 = mockRemoteMedia(
-    mockRtcMembership("@alice:example.org", "AAAA"),
-    { rawDisplayName: "Alice" },
-    mockRemoteParticipant({}),
-  );
-
-  const vm2 = mockLocalMedia(
-    mockRtcMembership("@bob:example.org", "BBBB"),
-    { rawDisplayName: "Bob" },
-    mockLocalParticipant({}),
-    mockMediaDevices({}),
-  );
-
-  const user = userEvent.setup();
-  const toggleExpanded = vi.fn();
-  const media$ = new BehaviorSubject([vm1, vm2]);
-  render(
-    <SpotlightTile
-      vm={new SpotlightTileViewModel(media$, constant(false))}
-      targetWidth={300}
-      targetHeight={200}
-      expanded={false}
-      onToggleExpanded={toggleExpanded}
-      showIndicators
-      showNameTags
-      focusable={true}
-    />,
-  );
-
-  await user.click(screen.getByTestId("incall_split"));
-  expect(screen.getAllByTestId("split_pane")).toHaveLength(2);
-
-  act(() => media$.next([vm1]));
-
-  expect(screen.queryByTestId("incall_split")).not.toBeInTheDocument();
-  expect(screen.queryAllByTestId("split_pane")).toHaveLength(0);
-});
-
-test("Split pane's next button cycles through media, skipping the other pane", async () => {
-  const vm1 = mockRemoteMedia(
-    mockRtcMembership("@alice:example.org", "AAAA"),
-    { rawDisplayName: "Alice" },
-    mockRemoteParticipant({}),
-  );
-
-  const vm2 = mockLocalMedia(
-    mockRtcMembership("@bob:example.org", "BBBB"),
-    { rawDisplayName: "Bob" },
-    mockLocalParticipant({}),
-    mockMediaDevices({}),
-  );
-
-  const vm3 = mockRemoteScreenShare(
-    mockRtcMembership("@carol:example.org", "CCCC"),
-    { rawDisplayName: "Carol" },
-    mockRemoteParticipant({}),
-  );
-
-  const user = userEvent.setup();
-  const toggleExpanded = vi.fn();
-  render(
-    <SpotlightTile
-      vm={
-        new SpotlightTileViewModel(constant([vm1, vm2, vm3]), constant(false))
-      }
-      targetWidth={300}
-      targetHeight={200}
-      expanded={false}
-      onToggleExpanded={toggleExpanded}
-      showIndicators
-      showNameTags
-      focusable={true}
-    />,
-  );
-
-  await user.click(screen.getByTestId("incall_split"));
-
-  // Default split: Alice on the left, Bob on the right.
-  screen.getByText("Alice");
-  screen.getByText("Bob");
-  expect(screen.queryByText("Carol")).toBe(null);
-
-  // With 3+ items, each pane gets its own "next" control.
-  const nextButtons = screen.getAllByTestId("split_pane_next");
-  expect(nextButtons).toHaveLength(2);
-
-  // Advance the left pane: it should skip over Bob (shown on the right) and
-  // land on Carol.
-  await user.click(nextButtons[0]);
-  expect(screen.queryByText("Alice")).toBe(null);
-  screen.getByText("Carol");
-  screen.getByText("Bob");
 });
 
 test("SpotlightTile displays ringing media", async () => {

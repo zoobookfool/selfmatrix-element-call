@@ -12,3 +12,15 @@ Please see LICENSE in the repository root for full details.
   outline: var(--cpd-border-width-2) solid
     var(--cpd-color-border-interactive-primary) !important;
 }
+
+/*
+SelfMatrix (UI design notes v1.4, agreement 2/3): visual indicator for a tile
+selected via grid mode's emphasis selection - mirrors the mock's `.selected`
+outline treatment (ui-mock.html v2.2).
+*/
+.emphasized {
+  /* !important to take priority over the hover outline. */
+  outline: var(--cpd-border-width-2) solid
+    var(--cpd-color-icon-accent-tertiary, #5865f2) !important;
+  outline-offset: calc(-1 * var(--cpd-border-width-2));
+}

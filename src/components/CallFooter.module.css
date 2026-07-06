@@ -79,6 +79,22 @@ Please see LICENSE in the repository root for full details.
 .layout {
   grid-area: layout;
   justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: var(--cpd-space-3x);
+}
+
+/*
+SelfMatrix (UI design notes v1.4, agreement 2/3): grid mode's emphasis
+selection toggle, shown next to the layout switch (only while in grid mode).
+*/
+.emphasisToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--cpd-space-1x);
+  color: var(--cpd-color-text-secondary);
+  font: var(--cpd-font-body-sm-medium);
+  white-space: nowrap;
 }
 
 /*First hide the logo*/

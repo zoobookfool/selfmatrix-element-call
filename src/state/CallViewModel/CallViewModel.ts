@@ -91,6 +91,7 @@ import { ElementWidgetActions, widget } from "../../widget";
 import {
   type Alignment,
   type GridLayoutMedia,
+  type GridTileMedia,
   type Layout,
   type LayoutMedia,
   type OneOnOneLandscapeLayoutMedia,
@@ -147,11 +148,13 @@ import {
   createPinnedSpeaker$,
   createRequestedPinnedSpeaker$,
 } from "./pinnedSpeaker.ts";
+import { createEmphasisSelection$ } from "./emphasis.ts";
 import {
   createWrappedUserMedia,
   type WrappedUserMediaViewModel,
 } from "../media/WrappedUserMediaViewModel.ts";
 import { type ScreenShareViewModel } from "../media/ScreenShareViewModel.ts";
+import { type RemoteScreenShareViewModel } from "../media/RemoteScreenShareViewModel.ts";
 import { type UserMediaViewModel } from "../media/UserMediaViewModel.ts";
 import { type MediaViewModel } from "../media/MediaViewModel.ts";
 import { type LocalUserMediaViewModel } from "../media/LocalUserMediaViewModel.ts";
@@ -379,6 +382,30 @@ export interface CallViewModel {
   setPinnedSpeaker: (id: string | null) => void;
   /** Toggle whether a participant's tile is manually pinned to the spotlight. */
   togglePinnedSpeaker: (id: string) => void;
+
+  /**
+   * SelfMatrix (UI design notes v1.4, agreement 2/3): whether grid mode's
+   * "emphasis selection" is turned on. Grid-mode-only; has no effect while
+   * in spotlight mode. Turning it off clears the selection.
+   */
+  emphasisEnabled$: Behavior<boolean>;
+  /** Turn emphasis selection on or off. */
+  setEmphasisEnabled: (enabled: boolean) => void;
+  /**
+   * The ids (see BaseMediaViewModel.id) of the grid tiles currently
+   * emphasized, automatically pruned once their media is no longer part of
+   * grid$ (e.g. the participant left, or a screen share was un-watched).
+   */
+  emphasizedIds$: Behavior<string[]>;
+  /** Toggle whether a grid tile is emphasized (selected). */
+  toggleEmphasized: (id: string) => void;
+
+  /**
+   * SelfMatrix (UI design notes v1.4, agreement 1/2): screen shares the local
+   * user could opt in to watching, but hasn't yet - surfaced by the
+   * "視聴できる配信" chip bar rather than as tiles.
+   */
+  watchableScreenShares$: Behavior<RemoteScreenShareViewModel[]>;
 
   // header/footer visibility
   showHeader$: Behavior<boolean>;
@@ -814,12 +841,14 @@ export function createCallViewModel$(
             reaction$: scope.behavior(
               reactions$.pipe(map((v) => v[mediaId] ?? undefined)),
             ),
-            // SelfMatrix: whether this member is currently pinned to the
-            // spotlight (requirements MUST), forwarded down to its remote
-            // screen share (if any) for video quality control.
-            pinned$: scope.behavior(
-              requestedPinnedSpeakerId$.pipe(map((pin) => pin === id)),
-            ),
+            // SelfMatrix (FIX-1): the raw pin request, forwarded down so
+            // that any remote screen share belonging to this member can
+            // compare it against its *own* tile id (not this member's id)
+            // for video quality control. See WrappedUserMediaViewModel's
+            // doc comment on requestedPinnedSpeakerId$ for why forwarding
+            // the raw request (rather than a precomputed "am I pinned?"
+            // boolean keyed on the member's id) is necessary here.
+            requestedPinnedSpeakerId$,
           });
         },
       ),
@@ -891,6 +920,63 @@ export function createCallViewModel$(
               (...screenShares) => screenShares.flat(1),
             ),
       ),
+    ),
+  );
+
+  /**
+   * SelfMatrix (UI design notes v1.4, agreement 1/2): screen shares ("配信")
+   * are opt-in - a local user's own share is always considered "watched",
+   * but remote shares only count as watched once the user has explicitly
+   * opted in via `RemoteScreenShareViewModel.setWatching(true)`. Watched
+   * shares are mixed into the grid as ordinary tiles (see grid$ below);
+   * unwatched shares never get a tile at all, and are instead surfaced via
+   * watchableScreenShares$ for the "視聴できる配信" chip bar.
+   */
+  const screenSharesWithWatching$ = scope.behavior<
+    (readonly [ScreenShareViewModel, boolean])[]
+  >(
+    screenShares$.pipe(
+      switchMap((shares) =>
+        shares.length === 0
+          ? of([])
+          : combineLatest(
+              shares.map((s) =>
+                (s.local ? of(true) : s.watching$).pipe(
+                  map((watching) => [s, watching] as const),
+                ),
+              ),
+            ),
+      ),
+    ),
+  );
+
+  /**
+   * Screen shares the local user has opted in to watching (or their own
+   * share, which is always "watched"). These get ordinary grid tiles.
+   */
+  const watchedScreenShares$ = scope.behavior<ScreenShareViewModel[]>(
+    screenSharesWithWatching$.pipe(
+      map((pairs) => pairs.filter(([, watching]) => watching).map(([s]) => s)),
+      distinctUntilChanged(shallowEquals),
+    ),
+  );
+
+  /**
+   * Remote screen shares available to watch but not yet opted in to. Surfaced
+   * by the "視聴できる配信" chip bar (WatchableStreamsBar) rather than as
+   * tiles, so that unwatched streams never split the screen.
+   */
+  const watchableScreenShares$ = scope.behavior<RemoteScreenShareViewModel[]>(
+    screenSharesWithWatching$.pipe(
+      map((pairs) =>
+        pairs
+          .filter(
+            (pair): pair is [RemoteScreenShareViewModel, boolean] =>
+              !pair[0].local && !pair[1],
+          )
+          .map(([s]) => s),
+      ),
+      distinctUntilChanged(shallowEquals),
     ),
   );
 
@@ -995,28 +1081,7 @@ export function createCallViewModel$(
     ),
   );
 
-  const { pinnedSpeakerId$ } = createPinnedSpeaker$(
-    scope,
-    requestedPinnedSpeakerId$,
-    userMedia$,
-  );
-
-  /**
-   * The user media to show in the spotlight: the manually pinned speaker if
-   * there is one still present in the call, otherwise falls back to the
-   * automatically selected speaker.
-   */
-  const spotlightSpeaker$ = scope.behavior<UserMediaViewModel | undefined>(
-    combineLatest(
-      [pinnedSpeakerId$, userMedia$, autoSpotlightSpeaker$],
-      (pinnedSpeakerId, userMedia, autoSpotlightSpeaker) =>
-        (pinnedSpeakerId !== null &&
-          userMedia.find((m) => m.id === pinnedSpeakerId)) ||
-        autoSpotlightSpeaker,
-    ),
-  );
-
-  const grid$ = scope.behavior<UserMediaViewModel[]>(
+  const userMediaGrid$ = scope.behavior<UserMediaViewModel[]>(
     userMedia$.pipe(
       switchMap((mediaItems) => {
         const bins = mediaItems.map((m) =>
@@ -1030,6 +1095,48 @@ export function createCallViewModel$(
             );
       }),
       distinctUntilChanged(shallowEquals),
+    ),
+  );
+
+  /**
+   * SelfMatrix (UI design notes v1.4, agreement 2): the full set of tiles
+   * shown as ordinary grid tiles - participants (userMediaGrid$) plus watched
+   * screen shares. Screen shares are appended after the participant tiles so
+   * that participant ordering (which follows bin$, e.g. speaking/raised
+   * hand/presenter ranking) is undisturbed.
+   */
+  const grid$ = scope.behavior<GridTileMedia[]>(
+    combineLatest(
+      [userMediaGrid$, watchedScreenShares$],
+      (userMediaGrid, watchedScreenShares) => [
+        ...userMediaGrid,
+        ...watchedScreenShares,
+      ],
+    ),
+  );
+
+  // SelfMatrix (UI design notes v1.4, agreement 4): a participant's tile *or*
+  // a watched screen share's tile can be pinned to the spotlight, so the
+  // presence check uses grid$ (which contains both) rather than userMedia$
+  // alone.
+  const { pinnedSpeakerId$ } = createPinnedSpeaker$(
+    scope,
+    requestedPinnedSpeakerId$,
+    grid$,
+  );
+
+  /**
+   * The media to show in the spotlight: the manually pinned speaker/screen
+   * share if there is one still present in the call, otherwise falls back to
+   * the automatically selected speaker.
+   */
+  const spotlightSpeaker$ = scope.behavior<MediaViewModel | undefined>(
+    combineLatest(
+      [pinnedSpeakerId$, grid$, autoSpotlightSpeaker$],
+      (pinnedSpeakerId, grid, autoSpotlightSpeaker) =>
+        (pinnedSpeakerId !== null &&
+          grid.find((m) => m.id === pinnedSpeakerId)) ||
+        autoSpotlightSpeaker,
     ),
   );
 
@@ -1054,6 +1161,10 @@ export function createCallViewModel$(
     ),
   );
 
+  // SelfMatrix (UI design notes v1.4, agreement 2/4): screen shares no longer
+  // force everyone into the spotlight - they're opt-in tiles mixed into
+  // grid$ instead (see grid$/watchedScreenShares$ above). The spotlight is
+  // just the (possibly pinned) speaker, or ringing media while ringing.
   const spotlightAndPip$ = scope.behavior<{
     spotlight: MediaViewModel[];
     pip$: Observable<UserMediaViewModel | undefined>;
@@ -1063,21 +1174,14 @@ export function createCallViewModel$(
         if (ringingMedia.length > 0)
           return of({ spotlight: ringingMedia, pip$: localUserMediaForPip$ });
 
-        return screenShares$.pipe(
-          switchMap((screenShares) => {
-            if (screenShares.length > 0)
-              return of({ spotlight: screenShares, pip$: spotlightSpeaker$ });
-
-            return spotlightSpeaker$.pipe(
-              map((speaker) => ({
-                spotlight: speaker ? [speaker] : [],
-                // Hide PiP if redundant (i.e. if local user is already in spotlight)
-                pip$: localUserMediaForPip$.pipe(
-                  map((m) => (m === speaker ? undefined : m)),
-                ),
-              })),
-            );
-          }),
+        return spotlightSpeaker$.pipe(
+          map((speaker) => ({
+            spotlight: speaker ? [speaker] : [],
+            // Hide PiP if redundant (i.e. if local user is already in spotlight)
+            pip$: localUserMediaForPip$.pipe(
+              map((m) => (m === speaker ? undefined : m)),
+            ),
+          })),
         );
       }),
     ),
@@ -1134,16 +1238,43 @@ export function createCallViewModel$(
 
   const { setGridMode, gridMode$ } = createLayoutModeSwitch(scope, windowMode$);
 
+  // SelfMatrix (UI design notes v1.4, agreement 2/3): grid mode's "emphasis
+  // selection" - a grid-mode-only feature letting the user narrow the square
+  // grid down to a chosen subset of tiles, demoting the rest to a mini tile
+  // strip. Selection is pruned to whatever's still in grid$ (participants +
+  // watched screen shares).
+  const {
+    emphasisEnabled$,
+    emphasizedIds$,
+    setEmphasisEnabled,
+    toggleEmphasized,
+  } = createEmphasisSelection$(scope, grid$, gridMode$);
+
+  // SelfMatrix (UI design notes v1.4, agreement 2): grid mode no longer has a
+  // fixed embedded spotlight slot for screen shares - watched screen shares
+  // are ordinary grid tiles now (see grid$ above), so grid layout media never
+  // carries a spotlight. When emphasis selection is active with at least one
+  // selected tile, the grid is narrowed to just the selection (still
+  // square-packed) and everything else becomes a mini tile strip; the
+  // selection itself never changes gridMode$ (agreement 3).
   const gridLayoutMedia$: Observable<GridLayoutMedia> = combineLatest(
-    [grid$, spotlight$],
-    (grid, spotlight) => ({
-      type: "grid",
-      edgeToEdge: false,
-      spotlight: spotlight.some((vm) => vm.type === "screen share")
-        ? spotlight
-        : undefined,
-      grid,
-    }),
+    [grid$, emphasisEnabled$, emphasizedIds$],
+    (grid, emphasisEnabled, emphasizedIds) => {
+      const emphasizedSet = new Set(emphasizedIds);
+      const emphasized =
+        emphasisEnabled && emphasizedIds.length > 0
+          ? grid.filter((m) => emphasizedSet.has(m.id))
+          : null;
+      return {
+        type: "grid" as const,
+        edgeToEdge: false as const,
+        spotlight: undefined,
+        grid: emphasized ?? grid,
+        strip: emphasized
+          ? grid.filter((m) => !emphasizedSet.has(m.id))
+          : undefined,
+      };
+    },
   );
 
   const spotlightLandscapeLayoutMedia$ = (
@@ -1842,6 +1973,11 @@ export function createCallViewModel$(
     pinnedSpeakerId$: pinnedSpeakerId$,
     setPinnedSpeaker: setPinnedSpeaker,
     togglePinnedSpeaker: togglePinnedSpeaker,
+    emphasisEnabled$,
+    setEmphasisEnabled,
+    emphasizedIds$,
+    toggleEmphasized,
+    watchableScreenShares$,
     layout$: layout$,
     localMatrixLivekitMember$,
     matrixLivekitMembers$: scope.behavior(

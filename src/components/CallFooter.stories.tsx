@@ -84,6 +84,8 @@ export const Default: Story = {
     videoEnabled: true,
     videoBusy: false,
     setLayoutMode: fn(),
+    emphasisEnabled: false,
+    setEmphasisEnabled: fn(),
     openSettings: fn(),
     toggleAudio: fn(),
     toggleVideo: fn(),

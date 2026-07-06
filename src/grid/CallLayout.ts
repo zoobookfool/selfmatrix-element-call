@@ -107,3 +107,29 @@ export function arrangeTiles(
 
   return { tileWidth, tileHeight, gap, columns };
 }
+
+/**
+ * SelfMatrix (UI design notes v1.4, agreement 2): determines a "square
+ * packing" grid arrangement for the given number of tiles - the layout used
+ * by the fork's grid mode, where tiles fill the available space evenly
+ * without any minimum/maximum aspect ratio clamp (unlike {@link
+ * arrangeTiles}, which targets 16:9-ish tiles for the upstream layout).
+ *
+ * The packing rule is: columns = ceil(sqrt(n)), rows = ceil(n / columns).
+ * This yields e.g. 1 -> 1x1, 2 -> 1x2, 3-4 -> 2x2, 5-9 -> 3x3.
+ */
+export function arrangeTilesSquare(
+  width: number,
+  minHeight: number,
+  tileCount: number,
+): GridArrangement {
+  const gap = width < 800 ? 16 : 20;
+  const n = Math.max(tileCount, 1);
+  const columns = Math.ceil(Math.sqrt(n));
+  const rows = Math.ceil(n / columns);
+
+  const tileWidth = (width - (columns + 1) * gap) / columns;
+  const tileHeight = (minHeight - (rows - 1) * gap) / rows;
+
+  return { tileWidth, tileHeight, gap, columns };
+}
