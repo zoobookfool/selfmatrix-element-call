@@ -53,8 +53,18 @@ import {
 import { ElementWidgetActions, widget } from "../../../widget.ts";
 import { getUrlParams } from "../../../UrlParams.ts";
 import { PosthogAnalytics } from "../../../analytics/PosthogAnalytics.ts";
-import { MatrixRTCMode } from "../../../settings/settings.ts";
+import {
+  MatrixRTCMode,
+  sanitizeScreenShareFps,
+  sanitizeScreenShareQuality,
+  screenShareFps,
+  screenShareQuality,
+} from "../../../settings/settings.ts";
 import { Config } from "../../../config/Config.ts";
+import {
+  screenShareCaptureResolution,
+  screenSharePublishOptions,
+} from "../../../livekit/options.ts";
 import {
   ConnectionState,
   type Connection,
@@ -705,6 +715,20 @@ export const createLocalMembership$ = ({
     !getUrlParams().hideScreensharing
   ) {
     toggleScreenSharing = (): void => {
+      // SelfMatrix: use the user's selected screen share quality/fps
+      // (requirements §3 SHOULD, defaults to 4K60, matching prior behaviour).
+      // This is only applied when starting a new share: livekit-client
+      // treats a later setScreenShareEnabled(true) call on an
+      // already-sharing track as an unmute and ignores these options.
+      // Use getStoredValue() (re-reads localStorage) rather than getValue()
+      // (in-memory only) so that a selection made via the cinny shell's call
+      // controls (parent frame, same origin) after this module initialised
+      // is also picked up when the share is started. Sanitize in case the
+      // parent frame ever writes an unexpected value.
+      const quality = sanitizeScreenShareQuality(
+        screenShareQuality.getStoredValue(),
+      );
+      const fps = sanitizeScreenShareFps(screenShareFps.getStoredValue());
       const screenshareSettings: ScreenShareCaptureOptions = {
         // Screen share audio shouldn't have any filtering.
         // "echoCancellation" is purposely excluded, as setting it to
@@ -715,10 +739,11 @@ export const createLocalMembership$ = ({
           noiseSuppression: false,
           voiceIsolation: false,
         },
-        // SelfMatrix: request 4K60 screen capture (requirements SHOULD). This
-        // is a constraint, not a guarantee: getDisplayMedia degrades it
-        // automatically if the source or display can't provide it.
-        resolution: { width: 3840, height: 2160, frameRate: 60 },
+        // SelfMatrix: request screen capture at the selected quality/fps
+        // (requirements SHOULD). This is a constraint, not a guarantee:
+        // getDisplayMedia degrades it automatically if the source or
+        // display can't provide it.
+        resolution: screenShareCaptureResolution(quality, fps),
         selfBrowserSurface: "include",
         surfaceSwitching: "include",
         systemAudio: "include",
@@ -738,7 +763,11 @@ export const createLocalMembership$ = ({
       // is still initializing or publishing tracks, because there's no
       // technical reason to disallow this. LiveKit will publish if it can.
       participant$.value
-        ?.setScreenShareEnabled(targetScreenshareState, screenshareSettings)
+        ?.setScreenShareEnabled(
+          targetScreenshareState,
+          screenshareSettings,
+          screenSharePublishOptions(quality, fps),
+        )
         .catch(logger.error);
     };
   }

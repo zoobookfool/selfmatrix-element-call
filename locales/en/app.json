@@ -188,6 +188,12 @@
   "return_home_button": "Return to home screen",
   "room_auth_view_continue_button": "Continue",
   "room_auth_view_ssla_caption": "By clicking \"Join call now\", you agree to our <2>Software and Services License Agreement (SSLA)</2>",
+  "screen_share_options": {
+    "fps": "Frame rate",
+    "menu_title": "Stream settings",
+    "options_button_label": "Stream settings",
+    "quality": "Quality"
+  },
   "screenshare_button_label": "Share screen",
   "settings": {
     "audio_tab": {

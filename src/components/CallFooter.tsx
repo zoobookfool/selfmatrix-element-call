@@ -20,7 +20,6 @@ import {
   EndCallButton,
   MicButton,
   VideoButton,
-  ShareScreenButton,
   SettingsButton,
   ReactionToggleButton,
   LoudspeakerButton,
@@ -33,6 +32,7 @@ import {
   MediaMuteAndSwitchButton,
   type MenuOptions,
 } from "./MediaMuteAndSwitchButton";
+import { ShareScreenMenuButton } from "./ShareScreenMenuButton";
 import { type ViewModel } from "../state/ViewModel";
 import { useBehavior } from "../useBehavior";
 
@@ -232,13 +232,12 @@ export const CallFooter: FC<FooterProps> = ({ ref, children, vm }) => {
 
   if (toggleScreenSharing !== undefined) {
     buttons.push(
-      <ShareScreenButton
+      <ShareScreenMenuButton
         size={buttonSize}
         key="share_screen"
         className={styles.shareScreen}
-        enabled={sharingScreen ?? false}
-        onClick={toggleScreenSharing}
-        data-testid="incall_screenshare"
+        sharing={sharingScreen ?? false}
+        onToggle={toggleScreenSharing}
       />,
     );
   }

@@ -188,6 +188,12 @@
   "return_home_button": "ホーム画面に戻る",
   "room_auth_view_continue_button": "続行",
   "room_auth_view_ssla_caption": "「今すぐ通話に参加」をクリックすることで、当社の<2>ソフトウェアおよびサービス利用許諾契約 (SSLA)</2>に同意したものとみなされます",
+  "screen_share_options": {
+    "fps": "FPS",
+    "menu_title": "配信の設定",
+    "options_button_label": "配信の設定",
+    "quality": "画質"
+  },
   "screenshare_button_label": "画面共有",
   "settings": {
     "audio_tab": {

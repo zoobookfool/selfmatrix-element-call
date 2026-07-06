@@ -54,6 +54,31 @@ export class Setting<T> {
   public readonly getValue = (): T => {
     return this._value$.getValue();
   };
+
+  /**
+   * SelfMatrix: re-reads the setting straight from localStorage instead of
+   * the in-memory BehaviorSubject. `Setting` only reads localStorage once, at
+   * construction time, so a same-origin parent frame (the cinny shell) that
+   * writes to this key *after* the module has initialised would otherwise be
+   * invisible to `getValue()`. Used by the screen share quality/fps picker,
+   * which lives in the cinny shell and writes to the same localStorage keys.
+   * Falls back to the current in-memory value if nothing is stored or the
+   * stored value fails to parse.
+   */
+  public readonly getStoredValue = (): T => {
+    const storedValue = localStorage.getItem(this.key);
+    if (storedValue !== null) {
+      try {
+        return JSON.parse(storedValue) as T;
+      } catch (e) {
+        logger.warn(
+          `Invalid value stored for setting ${this.key}: ${storedValue}.`,
+          e,
+        );
+      }
+    }
+    return this._value$.getValue();
+  };
 }
 
 /**
@@ -188,3 +213,62 @@ export const miniTileStripPosition = new Setting<MiniTileStripPosition>(
   "mini-tile-strip-position",
   "bottom",
 );
+
+/**
+ * SelfMatrix: screen share quality preset (requirements §3 SHOULD, Discord
+ * parity). Selected in the screen share options menu and applied only when a
+ * new share is started (livekit-client treats a later `setScreenShareEnabled`
+ * call on an already-sharing track as an unmute, ignoring capture options).
+ * "2160" (4K) matches the existing default behaviour.
+ */
+export type ScreenShareQuality = "480" | "720" | "1080" | "2160";
+
+export const screenShareQuality = new Setting<ScreenShareQuality>(
+  "screen-share-quality",
+  "2160",
+);
+
+/**
+ * SelfMatrix: screen share frame rate preset, paired with
+ * {@link screenShareQuality}. Defaults to 60fps, matching the existing
+ * default behaviour.
+ */
+export type ScreenShareFps = 15 | 30 | 60;
+
+export const screenShareFps = new Setting<ScreenShareFps>(
+  "screen-share-fps",
+  60,
+);
+
+/**
+ * SelfMatrix: validates a value read back from localStorage (which may have
+ * been written by the cinny shell's screen share quality/fps picker, a
+ * same-origin but independently-versioned parent frame) before it is used to
+ * configure screen capture. Falls back to {@link screenShareQuality}'s
+ * default for anything that isn't one of the known presets.
+ */
+export function sanitizeScreenShareQuality(value: unknown): ScreenShareQuality {
+  if (
+    value === "480" ||
+    value === "720" ||
+    value === "1080" ||
+    value === "2160"
+  ) {
+    return value;
+  }
+  return screenShareQuality.defaultValue;
+}
+
+/**
+ * SelfMatrix: validates a value read back from localStorage (which may have
+ * been written by the cinny shell's screen share quality/fps picker, a
+ * same-origin but independently-versioned parent frame) before it is used to
+ * configure screen capture. Falls back to {@link screenShareFps}'s default
+ * for anything that isn't one of the known presets.
+ */
+export function sanitizeScreenShareFps(value: unknown): ScreenShareFps {
+  if (value === 15 || value === 30 || value === 60) {
+    return value;
+  }
+  return screenShareFps.defaultValue;
+}
