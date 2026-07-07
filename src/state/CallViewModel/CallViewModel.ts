@@ -1263,17 +1263,26 @@ export function createCallViewModel$(
   // selected tile, the grid is narrowed to just the selection (still
   // square-packed). Everything else becomes a mini tile strip unless a
   // screen share is currently being watched, where the Discord-style stream
-  // overlay replaces the speaker mini tiles. The selection itself never
-  // changes gridMode$ (agreement 3).
+  // overlay replaces the speaker mini tiles. Watched screen shares are kept
+  // in the narrowed grid even if the user emphasized a participant tile, so
+  // the stream tile that carries the speaker overlay never disappears. The
+  // selection itself never changes gridMode$ (agreement 3).
   const gridLayoutMedia$: Observable<GridLayoutMedia> = combineLatest(
     [grid$, watchedScreenShares$, emphasisEnabled$, emphasizedIds$],
     (grid, watchedScreenShares, emphasisEnabled, emphasizedIds) => {
       const emphasizedSet = new Set(emphasizedIds);
+      const watchedScreenShareSet = new Set(
+        watchedScreenShares.map((m) => m.id),
+      );
+      const suppressMiniTileStrip = watchedScreenShares.length > 0;
       const emphasized =
         emphasisEnabled && emphasizedIds.length > 0
-          ? grid.filter((m) => emphasizedSet.has(m.id))
+          ? grid.filter(
+              (m) =>
+                emphasizedSet.has(m.id) ||
+                (suppressMiniTileStrip && watchedScreenShareSet.has(m.id)),
+            )
           : null;
-      const suppressMiniTileStrip = watchedScreenShares.length > 0;
       return {
         type: "grid" as const,
         edgeToEdge: false as const,

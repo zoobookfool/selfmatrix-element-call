@@ -235,13 +235,14 @@ export function createRemoteScreenShare(
     ),
     watching$,
     qualityInfo$: scope.behavior(
-      inputs.participant$.pipe(
-        switchMap((p) =>
-          p
-            ? observeInboundRtpStreamStats$(p, Track.Source.ScreenShare)
+      combineLatest([watching$, inputs.participant$]).pipe(
+        switchMap(([watching, p]) =>
+          watching && p
+            ? observeInboundRtpStreamStats$(p, Track.Source.ScreenShare).pipe(
+                map(toQualityInfo),
+              )
             : of(undefined),
         ),
-        map(toQualityInfo),
       ),
     ),
     setWatching: (watching: boolean): void => {

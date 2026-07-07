@@ -535,6 +535,56 @@ describe.each([
     });
   });
 
+  test("watched screen shares stay visible when emphasizing a participant tile", () => {
+    // Regression guard for EC 99a01f02: suppressing the mini tile strip while
+    // a stream is watched must not also remove the stream tile itself. The
+    // stream tile carries the speaker overlay, so it remains in the narrowed
+    // grid even when the user emphasizes a participant.
+    withTestScheduler(({ behavior, schedule, expectObservable }) => {
+      const sharingInputMarbles = "y";
+      const expectedLayoutMarbles = "ab";
+
+      withCallViewModel(
+        {
+          remoteParticipants$: constant([aliceParticipant, bobParticipant]),
+          rtcMembers$: constant([localRtcMember, aliceRtcMember, bobRtcMember]),
+          sharingScreen: new Map([
+            [localParticipant, behavior(sharingInputMarbles, yesNo)],
+          ]),
+        },
+        (vm) => {
+          schedule("-e", {
+            e: () => {
+              vm.setEmphasisEnabled(true);
+              vm.toggleEmphasized(`${aliceId}:0`);
+            },
+          });
+
+          expectObservable(summarizeLayout$(vm.layout$)).toBe(
+            expectedLayoutMarbles,
+            {
+              a: {
+                type: "grid",
+                spotlight: undefined,
+                grid: [
+                  `${localId}:0`,
+                  `${aliceId}:0`,
+                  `${bobId}:0`,
+                  `${localId}:0:screen-share`,
+                ],
+              },
+              b: {
+                type: "grid",
+                spotlight: undefined,
+                grid: [`${aliceId}:0`, `${localId}:0:screen-share`],
+              },
+            },
+          );
+        },
+      );
+    });
+  });
+
   test("local screen sharing in one-on-one call activates grid layout", () => {
     withTestScheduler(({ behavior, expectObservable }) => {
       // Local participant shares their screen, then stops sharing
