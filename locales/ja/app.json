@@ -193,7 +193,8 @@
     "fps": "FPS",
     "menu_title": "配信の設定",
     "options_button_label": "配信の設定",
-    "quality": "画質"
+    "quality": "画質",
+    "source_resolution": "ソース解像度"
   },
   "screenshare_button_label": "画面共有",
   "settings": {

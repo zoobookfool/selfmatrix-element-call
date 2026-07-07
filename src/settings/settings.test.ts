@@ -26,14 +26,14 @@ describe("Setting.getStoredValue", () => {
 
     // Simulate a same-origin parent frame (the cinny shell) writing to the
     // same localStorage key after this module has already initialised.
-    localStorage.setItem("matrix-setting-screen-share-quality", '"480"');
+    localStorage.setItem("matrix-setting-screen-share-quality", '"720"');
 
     // The in-memory BehaviorSubject was never told about the write, so
     // getValue() still returns the stale (default) value.
     expect(screenShareQuality.getValue()).toBe(screenShareQuality.defaultValue);
 
     // getStoredValue() re-reads localStorage and picks up the new value.
-    expect(screenShareQuality.getStoredValue()).toBe("480");
+    expect(screenShareQuality.getStoredValue()).toBe("720");
   });
 
   test("falls back to the in-memory value when nothing is stored", () => {
@@ -49,7 +49,7 @@ describe("Setting.getStoredValue", () => {
 
 describe("sanitizeScreenShareQuality", () => {
   test("passes through known presets", () => {
-    for (const value of ["480", "720", "1080", "2160"] as const) {
+    for (const value of ["720", "1080", "source"] as const) {
       expect(sanitizeScreenShareQuality(value)).toBe(value);
     }
   });

@@ -143,11 +143,11 @@ export const showHandRaisedTimer = new Setting<boolean>(
   false,
 );
 
-export const showReactions = new Setting<boolean>("reactions-show", true);
+export const showReactions = new Setting<boolean>("reactions-show", false);
 
 export const playReactionsSound = new Setting<boolean>(
   "reactions-play-sound",
-  true,
+  false,
 );
 
 export const soundEffectVolume = new Setting<number>(
@@ -219,13 +219,14 @@ export const miniTileStripPosition = new Setting<MiniTileStripPosition>(
  * parity). Selected in the screen share options menu and applied only when a
  * new share is started (livekit-client treats a later `setScreenShareEnabled`
  * call on an already-sharing track as an unmute, ignoring capture options).
- * "2160" (4K) matches the existing default behaviour.
+ * "source" follows the captured window/display size instead of forcing a
+ * downscaled capture constraint.
  */
-export type ScreenShareQuality = "480" | "720" | "1080" | "2160";
+export type ScreenShareQuality = "720" | "1080" | "source";
 
 export const screenShareQuality = new Setting<ScreenShareQuality>(
   "screen-share-quality",
-  "2160",
+  "source",
 );
 
 /**
@@ -248,12 +249,7 @@ export const screenShareFps = new Setting<ScreenShareFps>(
  * default for anything that isn't one of the known presets.
  */
 export function sanitizeScreenShareQuality(value: unknown): ScreenShareQuality {
-  if (
-    value === "480" ||
-    value === "720" ||
-    value === "1080" ||
-    value === "2160"
-  ) {
+  if (value === "720" || value === "1080" || value === "source") {
     return value;
   }
   return screenShareQuality.defaultValue;

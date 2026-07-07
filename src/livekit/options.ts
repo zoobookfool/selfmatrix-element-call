@@ -19,9 +19,9 @@ import {
   type ScreenShareQuality,
 } from "../settings/settings";
 
-// SelfMatrix: 4K60 画面共有 (requirements SHOULD)。実効ビットレートは内容依存。
-// livekit-client の ScreenSharePresets には 4K60 相当が無いため (h1080fps30 が上限)、
-// 自前で VideoPreset を定義する。maxBitrate は docs/architecture.md の見積 (4K60 ≈ 25Mbps) に一致。
+// SelfMatrix: source/60 画面共有 (requirements SHOULD)。実効ビットレートは内容依存。
+// livekit-client の ScreenSharePresets には source/60 の上限に使う 4K60 相当が無いため
+// (h1080fps30 が上限)、自前で VideoPreset を定義する。
 const screenShare4k60 = new VideoPreset(3840, 2160, 25_000_000, 60);
 
 // 非注視タイル (ミニタイル) 用の画面共有低解像度 simulcast 層。
@@ -29,9 +29,8 @@ const screenShare720p15Low = new VideoPreset(1280, 720, 1_500_000, 15);
 
 // SelfMatrix: 画面共有の画質/FPS ピッカー (requirements §3 SHOULD, Discord 準拠) 用の
 // 低解像度側の追加 simulcast 層。720p/480p を主レイヤーに選んだ場合、既存の
-// screenShare720p15Low を主レイヤーより上位にはできないため専用の低層を用意する。
+// screenShare720p15Low を 720p 主レイヤーより上位にはできないため専用の低層を用意する。
 const screenShare360p15Low = new VideoPreset(640, 360, 400_000, 15);
-const screenShare240p15Low = new VideoPreset(426, 240, 150_000, 15);
 
 const defaultLiveKitPublishOptions: TrackPublishDefaults = {
   // SelfMatrix: Opus 384kbps ステレオ (requirements SHOULD)。ハイレゾ別系統は Phase 6。
@@ -75,34 +74,41 @@ export const defaultLiveKitOptions: RoomOptions = {
 
 // SelfMatrix: 画面共有の画質/FPS ピッカー (requirements §3 SHOULD, Discord 準拠)。
 // capture 解像度は width/height のみで、frameRate は選択された FPS をそのまま使う。
+// LiveKit は resolution 未指定時に 1080p を補完するため、source は 0x0 の
+// uncapped 指定でキャプチャ元のサイズへ追従させる。
 const screenShareCaptureResolutions: Record<
   ScreenShareQuality,
   { width: number; height: number }
 > = {
-  "480": { width: 854, height: 480 },
+  source: { width: 0, height: 0 },
   "720": { width: 1280, height: 720 },
   "1080": { width: 1920, height: 1080 },
-  "2160": { width: 3840, height: 2160 },
+};
+
+const screenSharePublishResolutions: Record<
+  ScreenShareQuality,
+  { width: number; height: number }
+> = {
+  ...screenShareCaptureResolutions,
+  source: { width: 3840, height: 2160 },
 };
 
 // publish maxBitrate (bps) の表。SelfMatrix: 画質/FPS ピッカーの各組み合わせについて
-// Discord 相当の実効ビットレートを見積もったもの (docs/architecture.md 4K60 ≈ 25Mbps に準拠)。
+// Discord 相当の実効ビットレートを見積もったもの。
 const screenShareMaxBitrates: Record<
   ScreenShareQuality,
   Record<ScreenShareFps, number>
 > = {
-  "2160": { 15: 12_000_000, 30: 18_000_000, 60: 25_000_000 },
+  source: { 15: 12_000_000, 30: 18_000_000, 60: 25_000_000 },
   "1080": { 15: 3_000_000, 30: 5_000_000, 60: 8_000_000 },
   "720": { 15: 1_500_000, 30: 2_500_000, 60: 4_000_000 },
-  "480": { 15: 800_000, 30: 1_200_000, 60: 2_000_000 },
 };
 
 // ミニタイル用の低解像度 simulcast 層。主レイヤーの解像度に対して常に一段低いものを選ぶ。
 const screenShareLowLayers: Record<ScreenShareQuality, VideoPreset> = {
-  "2160": screenShare720p15Low,
+  source: screenShare720p15Low,
   "1080": screenShare720p15Low,
   "720": screenShare360p15Low,
-  "480": screenShare240p15Low,
 };
 
 /**
@@ -120,13 +126,14 @@ export function screenShareCaptureResolution(
 /**
  * SelfMatrix: 選択された画質/FPS から publish 用の TrackPublishOptions を作る
  * (requirements §3 SHOULD)。`defaultLiveKitPublishOptions` 自体は変更せず、
- * フォールバックの既定値 (4K60) のまま維持する。
+ * source は capture 制約では幅/高さを指定しないが、publish 側は高解像度ソースも
+ * 受けられる上限を使う。
  */
 export function screenSharePublishOptions(
   quality: ScreenShareQuality,
   fps: ScreenShareFps,
 ): TrackPublishOptions {
-  const { width, height } = screenShareCaptureResolutions[quality];
+  const { width, height } = screenSharePublishResolutions[quality];
   const maxBitrate = screenShareMaxBitrates[quality][fps];
   const encodingPreset = new VideoPreset(width, height, maxBitrate, fps);
   return {

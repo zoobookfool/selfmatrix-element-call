@@ -391,6 +391,17 @@ describe("UrlParams", () => {
     });
   });
 
+  describe("disableVideo", () => {
+    it("defaults to false", () => {
+      expect(computeUrlParams().disableVideo).toBe(false);
+    });
+
+    it("is parsed", () => {
+      expect(computeUrlParams("?disableVideo=true").disableVideo).toBe(true);
+      expect(computeUrlParams("?disableVideo=false").disableVideo).toBe(false);
+    });
+  });
+
   describe("header", () => {
     it("uses header if provided", () => {
       expect(computeUrlParams("?header=app_bar&hideHeader=true").header).toBe(

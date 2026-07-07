@@ -18,6 +18,7 @@ export function calculateInitialMuteState(
   skipLobby: boolean,
   callIntent: RTCCallIntent | undefined,
   isWidgetMode: boolean,
+  disableVideo = false,
 ): { audioEnabled: boolean; videoEnabled: boolean } {
   logger.debug(
     `calculateInitialMuteState: skipLobby=${skipLobby}, callIntent=${callIntent} isWidgetMode=${isWidgetMode}`,
@@ -37,6 +38,6 @@ export function calculateInitialMuteState(
   // Additionally, if the call intent is "audio", we disable video by default.
   return {
     audioEnabled: true,
-    videoEnabled: callIntent != "audio",
+    videoEnabled: !disableVideo && callIntent != "audio",
   };
 }

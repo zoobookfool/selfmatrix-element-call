@@ -89,14 +89,29 @@ SpotlightLandscapeLayout's strip).
   position: absolute;
   inset: 0;
   display: flex;
-  gap: var(--gap, 20px);
-  padding: var(--gap, 20px);
+  align-items: center;
+  gap: var(--cpd-space-2x);
+  padding: var(--cpd-space-2x);
   pointer-events: none;
+  isolation: isolate;
+}
+
+.stripLayer::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: var(--cpd-space-1x);
+  border-radius: var(--cpd-space-4x);
+  border: var(--cpd-border-width-1) solid
+    var(--cpd-color-border-interactive-secondary);
+  background: rgba(from var(--cpd-color-bg-canvas-default) r g b / 0.72);
+  box-shadow: var(--small-drop-shadow);
 }
 
 .stripLayer[data-strip-position="left"],
 .stripLayer[data-strip-position="right"] {
   flex-direction: column;
+  justify-content: flex-start;
   inline-size: 180px;
   block-size: 100%;
 }
@@ -127,7 +142,21 @@ SpotlightLandscapeLayout's strip).
 
 .stripLayer > .slot {
   pointer-events: auto;
+  position: relative;
+  z-index: 1;
   flex: 0 0 auto;
   inline-size: 150px;
   block-size: 86px;
+  filter: drop-shadow(0 2px 6px rgb(0 0 0 / 0.18));
+  opacity: 0.92;
+  transition:
+    opacity 0.15s,
+    transform 0.15s;
+}
+
+@media (hover) {
+  .stripLayer > .slot:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
 }

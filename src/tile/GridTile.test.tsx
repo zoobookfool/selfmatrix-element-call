@@ -6,7 +6,7 @@ Please see LICENSE in the repository root for full details.
 */
 
 import { type RemoteTrackPublication } from "livekit-client";
-import { test, expect } from "vitest";
+import { test, expect, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import { type MatrixRTCSession } from "matrix-js-sdk/lib/matrixrtc";
@@ -14,10 +14,13 @@ import { BehaviorSubject } from "rxjs";
 
 import { GridTile } from "./GridTile";
 import {
+  mockLivekitRoom,
+  mockLocalParticipant,
   mockRtcMembership,
   mockRemoteMedia,
   mockRemoteParticipant,
   mockRemoteScreenShare,
+  testScope,
 } from "../utils/test";
 import { GridTileViewModel } from "../state/TileViewModel";
 import { ReactionsSenderProvider } from "../reactions/useReactionsSender";
@@ -28,6 +31,8 @@ import {
   type RingingMediaViewModel,
 } from "../state/media/RingingMediaViewModel";
 import { type MuteStates } from "../state/MuteStates";
+import { createLocalScreenShare } from "../state/media/LocalScreenShareViewModel";
+import { E2eeType } from "../e2ee/e2eeType";
 
 global.IntersectionObserver = class MockIntersectionObserver {
   public observe(): void {}
@@ -163,4 +168,92 @@ test("GridTile displays a watched remote screen share as an ordinary tile", asyn
     unwatchButton.click();
   });
   expect(vm.watching$.value).toBe(false);
+});
+
+test("GridTile shows volume control on watched remote screen shares", async () => {
+  const vm = mockRemoteScreenShare(
+    mockRtcMembership("@alice:example.org", "AAAA"),
+    { rawDisplayName: "Alice" },
+    mockRemoteParticipant({}),
+  );
+  vm.setWatching(true);
+  vi.spyOn(vm, "audioEnabled$", "get").mockReturnValue(constant(true));
+
+  const { container } = render(
+    <ReactionsSenderProvider vm={callVm} rtcSession={fakeRtcSession}>
+      <GridTile
+        vm={new GridTileViewModel(constant(vm))}
+        onOpenProfile={() => {}}
+        targetWidth={300}
+        targetHeight={200}
+        showSpeakingIndicators
+        showNameTags
+        focusable
+      />
+    </ReactionsSenderProvider>,
+  );
+  expect(await axe(container)).toHaveNoViolations();
+
+  expect(
+    screen.getByRole("button", { name: /screen share volume/i }),
+  ).toBeInTheDocument();
+});
+
+test("GridTile hides screen share volume control when unavailable", () => {
+  const remoteVm = mockRemoteScreenShare(
+    mockRtcMembership("@alice:example.org", "AAAA"),
+    { rawDisplayName: "Alice" },
+    mockRemoteParticipant({}),
+  );
+  remoteVm.setWatching(true);
+  vi.spyOn(remoteVm, "audioEnabled$", "get").mockReturnValue(constant(false));
+
+  const { unmount } = render(
+    <ReactionsSenderProvider vm={callVm} rtcSession={fakeRtcSession}>
+      <GridTile
+        vm={new GridTileViewModel(constant(remoteVm))}
+        onOpenProfile={() => {}}
+        targetWidth={300}
+        targetHeight={200}
+        showSpeakingIndicators
+        showNameTags
+        focusable
+      />
+    </ReactionsSenderProvider>,
+  );
+
+  expect(
+    screen.queryByRole("button", { name: /screen share volume/i }),
+  ).not.toBeInTheDocument();
+  unmount();
+
+  const localParticipant = mockLocalParticipant({});
+  const localVm = createLocalScreenShare(testScope(), {
+    id: "local-screen-share",
+    userId: "@alice:example.org",
+    participant$: constant(localParticipant),
+    encryptionSystem: { kind: E2eeType.PER_PARTICIPANT },
+    livekitRoom$: constant(mockLivekitRoom({ localParticipant })),
+    focusUrl$: constant("https://rtc-example.org"),
+    displayName$: constant("Alice"),
+    mxcAvatarUrl$: constant(undefined),
+  });
+
+  render(
+    <ReactionsSenderProvider vm={callVm} rtcSession={fakeRtcSession}>
+      <GridTile
+        vm={new GridTileViewModel(constant(localVm))}
+        onOpenProfile={() => {}}
+        targetWidth={300}
+        targetHeight={200}
+        showSpeakingIndicators
+        showNameTags
+        focusable
+      />
+    </ReactionsSenderProvider>,
+  );
+
+  expect(
+    screen.queryByRole("button", { name: /screen share volume/i }),
+  ).not.toBeInTheDocument();
 });

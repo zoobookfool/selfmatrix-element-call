@@ -10,6 +10,7 @@ import {
   ParticipantEvent,
   type LocalParticipant,
   type ScreenShareCaptureOptions,
+  type TrackPublishOptions,
   RoomEvent,
   MediaDeviceFailure,
 } from "livekit-client";
@@ -709,6 +710,34 @@ export const createLocalMembership$ = ({
     ),
   );
 
+  interface ScreenShareRequest {
+    enabled: boolean;
+    captureOptions: ScreenShareCaptureOptions;
+    publishOptions: TrackPublishOptions;
+  }
+
+  let pendingScreenShareRequest: ScreenShareRequest | null = null;
+
+  const applyScreenShareRequest = (
+    participant: LocalParticipant,
+    request: ScreenShareRequest,
+  ): void => {
+    participant
+      .setScreenShareEnabled(
+        request.enabled,
+        request.captureOptions,
+        request.publishOptions,
+      )
+      .catch(logger.error);
+  };
+
+  participant$.pipe(scope.bind()).subscribe((participant) => {
+    if (!participant || pendingScreenShareRequest === null) return;
+    const request = pendingScreenShareRequest;
+    pendingScreenShareRequest = null;
+    applyScreenShareRequest(participant, request);
+  });
+
   let toggleScreenSharing: (() => void) | null = null;
   if (
     "getDisplayMedia" in (navigator.mediaDevices ?? {}) &&
@@ -716,7 +745,7 @@ export const createLocalMembership$ = ({
   ) {
     toggleScreenSharing = (): void => {
       // SelfMatrix: use the user's selected screen share quality/fps
-      // (requirements §3 SHOULD, defaults to 4K60, matching prior behaviour).
+      // (requirements §3 SHOULD, defaults to source/60).
       // This is only applied when starting a new share: livekit-client
       // treats a later setScreenShareEnabled(true) call on an
       // already-sharing track as an unmute and ignores these options.
@@ -748,27 +777,33 @@ export const createLocalMembership$ = ({
         surfaceSwitching: "include",
         systemAudio: "include",
       };
-      const targetScreenshareState = !sharingScreen$.value;
+      const targetScreenshareState = !(
+        pendingScreenShareRequest?.enabled ?? sharingScreen$.value
+      );
       logger.info(
         `toggleScreenSharing called. Switching ${
           targetScreenshareState ? "On" : "Off"
         }`,
       );
-      // If a connection is ready, toggle screen sharing.
-      // We deliberately do nothing in the case of a null connection because
-      // it looks nice for the call control buttons to all become available
-      // at once upon joining the call, rather than introducing a disabled
-      // state. The user can just click again.
-      // We also allow screen sharing to be toggled even if the connection
-      // is still initializing or publishing tracks, because there's no
-      // technical reason to disallow this. LiveKit will publish if it can.
-      participant$.value
-        ?.setScreenShareEnabled(
-          targetScreenshareState,
-          screenshareSettings,
-          screenSharePublishOptions(quality, fps),
-        )
-        .catch(logger.error);
+      const request: ScreenShareRequest = {
+        enabled: targetScreenshareState,
+        captureOptions: screenshareSettings,
+        publishOptions: screenSharePublishOptions(quality, fps),
+      };
+      // If a connection is ready, toggle screen sharing immediately. If the
+      // user clicks share before the local LiveKit participant exists (for
+      // example when alone in a voice channel), keep the desired state and
+      // apply it once participant$ appears instead of dropping the click.
+      const participant = participant$.value;
+      if (participant) {
+        pendingScreenShareRequest = null;
+        applyScreenShareRequest(participant, request);
+      } else if (targetScreenshareState) {
+        pendingScreenShareRequest = request;
+        requestJoinAndPublish();
+      } else {
+        pendingScreenShareRequest = null;
+      }
     };
   }
 

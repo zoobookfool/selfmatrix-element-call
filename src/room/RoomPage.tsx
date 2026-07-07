@@ -76,7 +76,9 @@ export const RoomPage: FC = (): ReactNode => {
           urlParams.skipLobby,
           urlParams.callIntent,
           widget !== null,
+          urlParams.disableVideo,
         ),
+        urlParams.disableVideo,
       ),
     );
     return (): void => scope.end();

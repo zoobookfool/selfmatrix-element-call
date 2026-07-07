@@ -206,7 +206,7 @@ export class MuteStates {
     this.scope,
     this.mediaDevices.videoInput,
     this.initialMuteState.videoEnabled,
-    this.isEarpiece$,
+    this.disableVideo ? constant(true) : this.isEarpiece$,
   );
 
   public constructor(
@@ -216,6 +216,7 @@ export class MuteStates {
       audioEnabled: boolean;
       videoEnabled: boolean;
     },
+    private readonly disableVideo = false,
   ) {
     if (widget !== null) {
       // Sync our mute states with the hosting client

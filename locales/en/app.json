@@ -193,7 +193,8 @@
     "fps": "Frame rate",
     "menu_title": "Stream settings",
     "options_button_label": "Stream settings",
-    "quality": "Quality"
+    "quality": "Quality",
+    "source_resolution": "Source resolution"
   },
   "screenshare_button_label": "Share screen",
   "settings": {

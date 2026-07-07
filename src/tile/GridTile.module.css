@@ -88,6 +88,67 @@ borders don't support gradients */
   width: 100%;
 }
 
+.screenShareActions {
+  grid-area: button;
+  place-self: end;
+  display: flex;
+  align-items: center;
+  gap: var(--cpd-space-2x);
+}
+
+.screenShareActionButton {
+  appearance: none;
+  border: none;
+  border-radius: var(--cpd-radius-pill-effect);
+  padding: var(--cpd-space-1x);
+  background: var(--cpd-color-bg-action-primary-rest);
+  box-shadow: var(--small-drop-shadow);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    background-color 0.1s;
+}
+
+.screenShareActionButton[data-enabled="true"],
+.screenShareActionButton[data-state="open"],
+.tile:has(:focus-visible) .screenShareActionButton {
+  opacity: 1;
+}
+
+.screenShareActionButton:active,
+.screenShareActionButton[data-state="open"] {
+  background: var(--cpd-color-bg-action-primary-pressed);
+}
+
+.screenShareActionButton > svg {
+  display: block;
+  color: var(--cpd-color-icon-on-solid-primary);
+}
+
+.volumeMenuItem {
+  gap: var(--cpd-space-3x);
+}
+
+/* Disable the hover effect for the screen share volume menu item. */
+.volumeMenuItem:hover {
+  background: transparent;
+  cursor: default;
+}
+
+.menuMuteButton {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+}
+
+.menuMuteButton > svg {
+  color: var(--cpd-color-icon-primary);
+}
+
 .tile .switchCamera {
   opacity: 1;
   background: var(--cpd-color-bg-action-secondary-rest);
@@ -99,6 +160,14 @@ borders don't support gradients */
 }
 
 @media (hover) {
+  .tile:hover .screenShareActionButton {
+    opacity: 1;
+  }
+
+  .screenShareActionButton:hover {
+    background: var(--cpd-color-bg-action-primary-hovered);
+  }
+
   .tile .switchCamera:hover {
     background: var(--cpd-color-bg-subtle-secondary);
     border-color: var(--cpd-color-border-interactive-hovered);

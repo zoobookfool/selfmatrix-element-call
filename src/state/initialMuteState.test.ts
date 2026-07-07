@@ -52,6 +52,17 @@ test.each<{
   },
 );
 
+test("Can force-disable video in widget mode", () => {
+  const { audioEnabled, videoEnabled } = calculateInitialMuteState(
+    true,
+    "video",
+    true,
+    true,
+  );
+  expect(audioEnabled).toBe(true);
+  expect(videoEnabled).toBe(false);
+});
+
 test.each<{
   callIntent: RTCCallIntent;
 }>([

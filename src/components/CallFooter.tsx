@@ -21,7 +21,6 @@ import {
   MicButton,
   VideoButton,
   SettingsButton,
-  ReactionToggleButton,
   LoudspeakerButton,
   SettingsIconButton,
   type ReactionData,
@@ -151,8 +150,6 @@ export const CallFooter: FC<FooterProps> = ({ ref, children, vm }) => {
   const toggleVideo = useBehavior(vm.toggleVideo$);
   const sharingScreen = useBehavior(vm.sharingScreen$);
   const toggleScreenSharing = useBehavior(vm.toggleScreenSharing$);
-  const reactionIdentifier = useBehavior(vm.reactionIdentifier$);
-  const reactionData = useBehavior(vm.reactionData$);
   const audioOutputSwitcher = useBehavior(vm.audioOutputSwitcher$);
   const hangup = useBehavior(vm.hangup$);
   const debugTileLayout = useBehavior(vm.debugTileLayout$);
@@ -253,18 +250,6 @@ export const CallFooter: FC<FooterProps> = ({ ref, children, vm }) => {
         className={styles.shareScreen}
         sharing={sharingScreen ?? false}
         onToggle={toggleScreenSharing}
-      />,
-    );
-  }
-
-  if (reactionIdentifier && reactionData) {
-    buttons.push(
-      <ReactionToggleButton
-        size={buttonSize}
-        reactionData={reactionData}
-        key="raise_hand"
-        className={styles.raiseHand}
-        identifier={reactionIdentifier}
       />,
     );
   }

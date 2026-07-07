@@ -185,6 +185,10 @@ export interface UrlConfiguration {
    * disable the video functionality itself, it only hides the button.
    */
   hideVideoButton: boolean;
+  /**
+   * Whether camera capture should be disabled entirely.
+   */
+  disableVideo: boolean;
 
   /**
    * Whether the app is allowed to use fallback STUN servers for ICE in case the
@@ -376,6 +380,7 @@ export const computeUrlParams = (search = "", hash = ""): UrlParams => {
     showControls: true,
     hideScreensharing: false,
     hideVideoButton: false,
+    disableVideo: false,
     allowIceFallback: true,
     perParticipantE2EE: true,
     controlledAudioDevices: platform === "desktop" ? false : true,
@@ -432,6 +437,7 @@ export const computeUrlParams = (search = "", hash = ""): UrlParams => {
         showControls: true,
         hideScreensharing: false,
         hideVideoButton: false,
+        disableVideo: false,
         allowIceFallback: false,
         perParticipantE2EE: false,
         controlledAudioDevices: false,
@@ -479,6 +485,7 @@ export const computeUrlParams = (search = "", hash = ""): UrlParams => {
     showControls: parser.getFlag("showControls"),
     hideScreensharing: parser.getFlag("hideScreensharing"),
     hideVideoButton: parser.getFlag("hideVideoButton"),
+    disableVideo: parser.getFlag("disableVideo"),
     allowIceFallback: parser.getFlag("allowIceFallback"),
     perParticipantE2EE: parser.getFlag("perParticipantE2EE"),
     controlledAudioDevices: parser.getFlag("controlledAudioDevices"),

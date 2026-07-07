@@ -34,11 +34,10 @@ export interface ShareScreenMenuButtonProps {
   className?: string;
 }
 
-const QUALITY_OPTIONS: { id: ScreenShareQuality; label: string }[] = [
-  { id: "480", label: "480p" },
+const QUALITY_OPTIONS: { id: ScreenShareQuality; label?: string }[] = [
   { id: "720", label: "720p" },
   { id: "1080", label: "1080p" },
-  { id: "2160", label: "4K" },
+  { id: "source" },
 ];
 
 const FPS_OPTIONS: { id: ScreenShareFps; label: string }[] = [
@@ -106,7 +105,7 @@ export const ShareScreenMenuButton: FC<ShareScreenMenuButtonProps> = ({
             role="menuitemradio"
             aria-checked={quality === id}
             hideChevron
-            label={label}
+            label={label ?? t("screen_share_options.source_resolution")}
             disabled={sharing}
             data-testid={`ss_quality_${id}`}
             onSelect={(e) => {

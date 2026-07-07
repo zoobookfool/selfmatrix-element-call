@@ -839,7 +839,13 @@ export function createCallViewModel$(
               handsRaised$.pipe(map((v) => v[mediaId]?.time ?? null)),
             ),
             reaction$: scope.behavior(
-              reactions$.pipe(map((v) => v[mediaId] ?? undefined)),
+              showReactions.value$.pipe(
+                switchMap((show) =>
+                  show
+                    ? reactions$.pipe(map((v) => v[mediaId] ?? null))
+                    : of(null),
+                ),
+              ),
             ),
             // SelfMatrix (FIX-1): the raw pin request, forwarded down so
             // that any remote screen share belonging to this member can

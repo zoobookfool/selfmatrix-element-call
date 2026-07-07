@@ -52,7 +52,7 @@ describe("ShareScreenMenuButton", () => {
     expect(onToggle).toHaveBeenCalled();
   });
 
-  test("opens the options menu and shows the default 4K/60 selection", async () => {
+  test("opens the options menu and shows the default source/60 selection", async () => {
     const user = userEvent.setup();
     renderComponent(
       <ShareScreenMenuButton sharing={false} onToggle={vi.fn()} size="lg" />,
@@ -60,7 +60,7 @@ describe("ShareScreenMenuButton", () => {
 
     await user.click(screen.getByRole("button", { name: "Stream settings" }));
 
-    expect(screen.getByTestId("ss_quality_2160")).toHaveAttribute(
+    expect(screen.getByTestId("ss_quality_source")).toHaveAttribute(
       "aria-checked",
       "true",
     );

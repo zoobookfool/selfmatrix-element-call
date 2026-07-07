@@ -8,6 +8,7 @@ Please see LICENSE in the repository root for full details.
 import {
   type ComponentProps,
   type FC,
+  type MouseEvent,
   type ReactNode,
   type Ref,
   useCallback,
@@ -29,6 +30,7 @@ import {
   VisibilityOffIcon,
   UserProfileIcon,
   VolumeOffSolidIcon,
+  VolumeOnSolidIcon,
   SwitchCameraSolidIcon,
   VideoCallSolidIcon,
   VoiceCallSolidIcon,
@@ -50,11 +52,14 @@ import { type GridTileViewModel } from "../state/TileViewModel";
 import { useMergedRefs } from "../useMergedRefs";
 import { useReactionsSender } from "../reactions/useReactionsSender";
 import { useBehavior } from "../useBehavior";
+import { useInitial } from "../useInitial";
+import { constant } from "../state/Behavior";
 import { type LocalUserMediaViewModel } from "../state/media/LocalUserMediaViewModel";
 import { type RemoteUserMediaViewModel } from "../state/media/RemoteUserMediaViewModel";
 import { type UserMediaViewModel } from "../state/media/UserMediaViewModel";
 import { type RingingMediaViewModel } from "../state/media/RingingMediaViewModel";
 import { type ScreenShareViewModel } from "../state/media/ScreenShareViewModel";
+import { type RemoteScreenShareViewModel } from "../state/media/RemoteScreenShareViewModel";
 
 interface TileProps {
   ref?: Ref<HTMLDivElement>;
@@ -392,6 +397,86 @@ const RemoteUserMediaTile: FC<RemoteUserMediaTileProps> = ({
 
 RemoteUserMediaTile.displayName = "RemoteUserMediaTile";
 
+interface ScreenShareVolumeButtonProps {
+  vm: RemoteScreenShareViewModel;
+  focusable: boolean;
+}
+
+const ScreenShareVolumeButton: FC<ScreenShareVolumeButtonProps> = ({
+  vm,
+  focusable,
+}) => {
+  const { t } = useTranslation();
+  const audioEnabled = useBehavior(vm.audioEnabled$);
+  const playbackMuted = useBehavior(vm.playbackMuted$);
+  const playbackVolume = useBehavior(vm.playbackVolume$);
+
+  const VolumeIcon = playbackMuted ? VolumeOffIcon : VolumeOnIcon;
+  const VolumeSolidIcon = playbackMuted
+    ? VolumeOffSolidIcon
+    : VolumeOnSolidIcon;
+
+  const [volumeMenuOpen, setVolumeMenuOpen] = useState(false);
+  const onMuteButtonClick = useCallback(
+    (e: MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      vm.togglePlaybackMuted();
+    },
+    [vm],
+  );
+  const onVolumeChange = useCallback(
+    (v: number) => vm.adjustPlaybackVolume(v),
+    [vm],
+  );
+  const onVolumeCommit = useCallback(() => vm.commitPlaybackVolume(), [vm]);
+
+  if (!audioEnabled) return null;
+
+  return (
+    <Menu
+      open={volumeMenuOpen}
+      onOpenChange={setVolumeMenuOpen}
+      title={t("video_tile.screen_share_volume")}
+      side="top"
+      align="end"
+      trigger={
+        <button
+          className={styles.screenShareActionButton}
+          aria-label={t("video_tile.screen_share_volume")}
+          onClick={(e) => e.stopPropagation()}
+          tabIndex={focusable ? undefined : -1}
+        >
+          <VolumeSolidIcon aria-hidden width={20} height={20} />
+        </button>
+      }
+    >
+      <MenuItem
+        as="div"
+        className={styles.volumeMenuItem}
+        onSelect={null}
+        label={null}
+        hideChevron
+      >
+        <button className={styles.menuMuteButton} onClick={onMuteButtonClick}>
+          <VolumeIcon aria-hidden width={24} height={24} />
+        </button>
+        <Slider
+          className={styles.volumeSlider}
+          label={t("video_tile.volume")}
+          value={playbackVolume}
+          min={0}
+          max={1}
+          step={0.01}
+          onValueChange={onVolumeChange}
+          onValueCommit={onVolumeCommit}
+        />
+      </MenuItem>
+    </Menu>
+  );
+};
+
+ScreenShareVolumeButton.displayName = "ScreenShareVolumeButton";
+
 interface ScreenShareTileProps extends TileProps {
   vm: ScreenShareViewModel;
   /**
@@ -423,20 +508,45 @@ const ScreenShareTile: FC<ScreenShareTileProps> = ({
   const { t } = useTranslation();
   const video = useBehavior(vm.video$);
   const unencryptedWarning = useBehavior(vm.unencryptedWarning$);
+  const remoteVm: RemoteScreenShareViewModel | undefined = vm.local
+    ? undefined
+    : vm;
+  const noAudioEnabled$ = useInitial(() => constant(false));
+  const noPlaybackMuted$ = useInitial(() => constant(false));
+  const noPlaybackVolume$ = useInitial(() => constant(1));
+  const audioEnabled = useBehavior(remoteVm?.audioEnabled$ ?? noAudioEnabled$);
+  const playbackMuted = useBehavior(
+    remoteVm?.playbackMuted$ ?? noPlaybackMuted$,
+  );
+  const playbackVolume = useBehavior(
+    remoteVm?.playbackVolume$ ?? noPlaybackVolume$,
+  );
 
-  const stopWatchingButton = !vm.local ? (
-    <button
-      className={styles.switchCamera}
-      aria-label={t("video_tile.stop_watching")}
-      data-testid="incall_unwatch"
-      onClick={() => vm.setWatching(false)}
-      tabIndex={focusable ? undefined : -1}
-    >
-      <VisibilityOffIcon aria-hidden width={20} height={20} />
-    </button>
-  ) : undefined;
+  const onSelectStopWatching = useCallback(
+    (e: Event) => {
+      e.preventDefault();
+      remoteVm?.setWatching(false);
+    },
+    [remoteVm],
+  );
 
-  return (
+  const onSelectMute = useCallback(
+    (e: Event) => {
+      e.preventDefault();
+      remoteVm?.togglePlaybackMuted();
+    },
+    [remoteVm],
+  );
+
+  const onStopWatchingClick = useCallback(
+    (e: MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      remoteVm?.setWatching(false);
+    },
+    [remoteVm],
+  );
+
+  const tile = (
     <MediaView
       ref={ref}
       video={video}
@@ -451,10 +561,61 @@ const ScreenShareTile: FC<ScreenShareTileProps> = ({
       focusable={focusable}
       targetWidth={targetWidth}
       targetHeight={targetHeight}
-      primaryButton={stopWatchingButton}
+      primaryButton={
+        remoteVm && (
+          <div className={styles.screenShareActions}>
+            <button
+              className={styles.screenShareActionButton}
+              aria-label={t("video_tile.stop_watching")}
+              data-testid="incall_unwatch"
+              onClick={onStopWatchingClick}
+              tabIndex={focusable ? undefined : -1}
+            >
+              <VisibilityOffIcon aria-hidden width={20} height={20} />
+            </button>
+            <ScreenShareVolumeButton vm={remoteVm} focusable={focusable} />
+          </div>
+        )
+      }
       overlay={speakerOverlay}
       {...props}
     />
+  );
+
+  if (!remoteVm) return tile;
+
+  const VolumeIcon = playbackMuted ? VolumeOffIcon : VolumeOnIcon;
+
+  return (
+    <ContextMenu title={displayName} trigger={tile} hasAccessibleAlternative>
+      <MenuItem
+        Icon={VisibilityOffIcon}
+        label={t("video_tile.stop_watching")}
+        onSelect={onSelectStopWatching}
+      />
+      {audioEnabled && (
+        <>
+          <ToggleMenuItem
+            Icon={VolumeOffIcon}
+            label={t("video_tile.mute_for_me")}
+            checked={playbackMuted}
+            onSelect={onSelectMute}
+          />
+          <MenuItem as="div" Icon={VolumeIcon} label={null} onSelect={null}>
+            <Slider
+              className={styles.volumeSlider}
+              label={t("video_tile.volume")}
+              value={playbackVolume}
+              onValueChange={remoteVm.adjustPlaybackVolume}
+              onValueCommit={remoteVm.commitPlaybackVolume}
+              min={0}
+              max={1}
+              step={0.01}
+            />
+          </MenuItem>
+        </>
+      )}
+    </ContextMenu>
   );
 };
 

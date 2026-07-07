@@ -5,19 +5,31 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { type FC, useCallback, useRef } from "react";
+import { type FC, type ReactNode, useCallback, useRef } from "react";
 import classNames from "classnames";
 import { useDrag } from "@use-gesture/react";
 import { useTranslation } from "react-i18next";
-import { Text } from "@vector-im/compound-web";
-import { MicOffSolidIcon } from "@vector-im/compound-design-tokens/assets/web/icons";
+import {
+  ContextMenu,
+  MenuItem,
+  Text,
+  ToggleMenuItem,
+} from "@vector-im/compound-web";
+import {
+  MicOffIcon,
+  MicOffSolidIcon,
+  VolumeOffIcon,
+  VolumeOnIcon,
+} from "@vector-im/compound-design-tokens/assets/web/icons";
 
 import styles from "./SpeakerOverlay.module.css";
 import { Avatar, Size } from "../Avatar";
 import { type Behavior } from "../state/Behavior";
 import { useBehavior } from "../useBehavior";
 import { type UserMediaViewModel } from "../state/media/UserMediaViewModel";
+import { type RemoteUserMediaViewModel } from "../state/media/RemoteUserMediaViewModel";
 import { speakerOverlayAlignment, useSetting } from "../settings/settings";
+import { Slider } from "../Slider";
 
 interface SpeakerPillProps {
   vm: UserMediaViewModel;
@@ -29,7 +41,7 @@ interface SpeakerPillProps {
  * ring highlights whoever is currently speaking, and a muted mic icon is
  * shown for participants who have muted themselves.
  */
-const SpeakerPill: FC<SpeakerPillProps> = ({ vm }) => {
+const SpeakerPillContent: FC<SpeakerPillProps> = ({ vm }) => {
   const { t } = useTranslation();
   const speaking = useBehavior(vm.speaking$);
   const audioEnabled = useBehavior(vm.audioEnabled$);
@@ -70,6 +82,59 @@ const SpeakerPill: FC<SpeakerPillProps> = ({ vm }) => {
       )}
     </div>
   );
+};
+
+interface RemoteSpeakerPillProps {
+  vm: RemoteUserMediaViewModel;
+  children: ReactNode;
+}
+
+const RemoteSpeakerPill: FC<RemoteSpeakerPillProps> = ({ vm, children }) => {
+  const { t } = useTranslation();
+  const displayName = useBehavior(vm.displayName$);
+  const playbackMuted = useBehavior(vm.playbackMuted$);
+  const playbackVolume = useBehavior(vm.playbackVolume$);
+  const VolumeIcon = playbackMuted ? VolumeOffIcon : VolumeOnIcon;
+
+  const onSelectMute = useCallback(
+    (e: Event) => {
+      e.preventDefault();
+      vm.togglePlaybackMuted();
+    },
+    [vm],
+  );
+
+  return (
+    <ContextMenu
+      title={displayName}
+      trigger={children}
+      hasAccessibleAlternative
+    >
+      <ToggleMenuItem
+        Icon={MicOffIcon}
+        label={t("video_tile.mute_for_me")}
+        checked={playbackMuted}
+        onSelect={onSelectMute}
+      />
+      <MenuItem as="div" Icon={VolumeIcon} label={null} onSelect={null}>
+        <Slider
+          label={t("video_tile.volume")}
+          value={playbackVolume}
+          onValueChange={vm.adjustPlaybackVolume}
+          onValueCommit={vm.commitPlaybackVolume}
+          min={0}
+          max={1}
+          step={0.01}
+        />
+      </MenuItem>
+    </ContextMenu>
+  );
+};
+
+const SpeakerPill: FC<SpeakerPillProps> = ({ vm }) => {
+  const content = <SpeakerPillContent vm={vm} />;
+  if (vm.local) return content;
+  return <RemoteSpeakerPill vm={vm}>{content}</RemoteSpeakerPill>;
 };
 
 SpeakerPill.displayName = "SpeakerPill";

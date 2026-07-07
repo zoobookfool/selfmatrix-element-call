@@ -16,17 +16,16 @@ import {
   type ScreenShareQuality,
 } from "../settings/settings";
 
-const QUALITIES: ScreenShareQuality[] = ["480", "720", "1080", "2160"];
+const QUALITIES: ScreenShareQuality[] = ["720", "1080", "source"];
 const FPSES: ScreenShareFps[] = [15, 30, 60];
 
 const expectedResolutions: Record<
   ScreenShareQuality,
   { width: number; height: number }
 > = {
-  "480": { width: 854, height: 480 },
   "720": { width: 1280, height: 720 },
   "1080": { width: 1920, height: 1080 },
-  "2160": { width: 3840, height: 2160 },
+  source: { width: 0, height: 0 },
 };
 
 describe("screenShareCaptureResolution", () => {
@@ -44,8 +43,8 @@ describe("screenShareCaptureResolution", () => {
 });
 
 describe("screenSharePublishOptions", () => {
-  test("matches the existing 4K60 default encoding", () => {
-    const options = screenSharePublishOptions("2160", 60);
+  test("matches the source/60 default encoding", () => {
+    const options = screenSharePublishOptions("source", 60);
     expect(options.screenShareEncoding).toMatchObject({
       maxBitrate: 25_000_000,
       maxFramerate: 60,
@@ -56,7 +55,10 @@ describe("screenSharePublishOptions", () => {
     for (const quality of QUALITIES) {
       for (const fps of FPSES) {
         const options = screenSharePublishOptions(quality, fps);
-        const mainResolution = expectedResolutions[quality];
+        const mainResolution: { width: number; height: number } =
+          quality === "source"
+            ? { width: 3840, height: 2160 }
+            : expectedResolutions[quality];
         const lowLayers = options.screenShareSimulcastLayers ?? [];
         expect(lowLayers.length).toBeGreaterThan(0);
         for (const layer of lowLayers) {

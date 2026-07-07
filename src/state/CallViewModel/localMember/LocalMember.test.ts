@@ -32,6 +32,7 @@ import {
   flushPromises,
   mockConfig,
   mockLivekitRoom,
+  mockLocalParticipant,
   mockMuteStates,
   withTestScheduler,
   ownMemberMock,
@@ -402,6 +403,89 @@ describe("LocalMembership", () => {
     transport: bTransport,
     livekitRoom: mockLivekitRoom({}),
   } as unknown as Connection;
+
+  it("applies a screen share request once the local participant exists", async () => {
+    const scope = new ObservableScope();
+    const originalMediaDevices = navigator.mediaDevices;
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        ...originalMediaDevices,
+        getDisplayMedia: vi.fn(),
+      },
+    });
+
+    try {
+      const setScreenShareEnabled = vi.fn().mockResolvedValue(undefined);
+      const localParticipant = mockLocalParticipant({
+        trackPublications: new Map(),
+        setScreenShareEnabled,
+      });
+      const joinMatrixRTC = vi.fn();
+      const connectionManagerData$ = new BehaviorSubject(
+        new Epoch(new ConnectionManagerData()),
+      );
+      const createPublisherFactory = vi.fn(
+        () =>
+          ({
+            shouldPublish: false,
+            destroy: vi.fn().mockResolvedValue(undefined),
+            createAndSetupTracks: vi.fn().mockResolvedValue(undefined),
+            startPublishing: vi.fn().mockResolvedValue(undefined),
+            stopPublishing: vi.fn().mockResolvedValue(undefined),
+          }) as unknown as Publisher,
+      );
+
+      const localMembership = createLocalMembership$({
+        scope,
+        ...defaultCreateLocalMemberValues,
+        createPublisherFactory,
+        joinMatrixRTC,
+        connectionManager: {
+          connectionManagerData$,
+        },
+        localTransport$: new BehaviorSubject({
+          advertised$: new BehaviorSubject(aTransport),
+          active$: new BehaviorSubject(aTransportWithSFUConfig),
+        }),
+      });
+
+      localMembership.toggleScreenSharing?.();
+      await flushPromises();
+
+      expect(joinMatrixRTC).toHaveBeenCalled();
+      expect(setScreenShareEnabled).not.toHaveBeenCalled();
+
+      const connectionManagerData = new ConnectionManagerData();
+      connectionManagerData.add(
+        {
+          livekitRoom: mockLivekitRoom({ localParticipant }),
+          state$: constant(ConnectionState.LivekitConnected),
+          transport: aTransport,
+        } as unknown as Connection,
+        [],
+      );
+      connectionManagerData$.next(new Epoch(connectionManagerData));
+      await flushPromises();
+
+      expect(setScreenShareEnabled).toHaveBeenCalledTimes(1);
+      expect(setScreenShareEnabled).toHaveBeenCalledWith(
+        true,
+        expect.objectContaining({
+          resolution: expect.objectContaining({ frameRate: 60 }),
+        }),
+        expect.objectContaining({
+          screenShareEncoding: expect.any(Object),
+        }),
+      );
+    } finally {
+      Object.defineProperty(navigator, "mediaDevices", {
+        configurable: true,
+        value: originalMediaDevices,
+      });
+      scope.end();
+    }
+  });
 
   it("recreates publisher if new connection is used, always unpublish and end tracks", async () => {
     const scope = new ObservableScope();
