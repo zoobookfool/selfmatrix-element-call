@@ -1261,24 +1261,28 @@ export function createCallViewModel$(
   // are ordinary grid tiles now (see grid$ above), so grid layout media never
   // carries a spotlight. When emphasis selection is active with at least one
   // selected tile, the grid is narrowed to just the selection (still
-  // square-packed) and everything else becomes a mini tile strip; the
-  // selection itself never changes gridMode$ (agreement 3).
+  // square-packed). Everything else becomes a mini tile strip unless a
+  // screen share is currently being watched, where the Discord-style stream
+  // overlay replaces the speaker mini tiles. The selection itself never
+  // changes gridMode$ (agreement 3).
   const gridLayoutMedia$: Observable<GridLayoutMedia> = combineLatest(
-    [grid$, emphasisEnabled$, emphasizedIds$],
-    (grid, emphasisEnabled, emphasizedIds) => {
+    [grid$, watchedScreenShares$, emphasisEnabled$, emphasizedIds$],
+    (grid, watchedScreenShares, emphasisEnabled, emphasizedIds) => {
       const emphasizedSet = new Set(emphasizedIds);
       const emphasized =
         emphasisEnabled && emphasizedIds.length > 0
           ? grid.filter((m) => emphasizedSet.has(m.id))
           : null;
+      const suppressMiniTileStrip = watchedScreenShares.length > 0;
       return {
         type: "grid" as const,
         edgeToEdge: false as const,
         spotlight: undefined,
         grid: emphasized ?? grid,
-        strip: emphasized
-          ? grid.filter((m) => !emphasizedSet.has(m.id))
-          : undefined,
+        strip:
+          emphasized && !suppressMiniTileStrip
+            ? grid.filter((m) => !emphasizedSet.has(m.id))
+            : undefined,
       };
     },
   );

@@ -199,6 +199,37 @@ test("GridTile shows volume control on watched remote screen shares", async () =
   ).toBeInTheDocument();
 });
 
+test("GridTile shows remote screen share receive quality", () => {
+  const vm = mockRemoteScreenShare(
+    mockRtcMembership("@alice:example.org", "AAAA"),
+    { rawDisplayName: "Alice" },
+    mockRemoteParticipant({}),
+  );
+  vm.setWatching(true);
+  Object.defineProperty(vm, "qualityInfo$", {
+    configurable: true,
+    value: constant({ width: 1280, height: 720, fps: 29.97 }),
+  });
+
+  render(
+    <ReactionsSenderProvider vm={callVm} rtcSession={fakeRtcSession}>
+      <GridTile
+        vm={new GridTileViewModel(constant(vm))}
+        onOpenProfile={() => {}}
+        targetWidth={300}
+        targetHeight={200}
+        showSpeakingIndicators
+        showNameTags
+        focusable
+      />
+    </ReactionsSenderProvider>,
+  );
+
+  expect(screen.getByTestId("screen_share_quality_badge")).toHaveTextContent(
+    "720p 30 FPS",
+  );
+});
+
 test("GridTile hides screen share volume control when unavailable", () => {
   const remoteVm = mockRemoteScreenShare(
     mockRtcMembership("@alice:example.org", "AAAA"),

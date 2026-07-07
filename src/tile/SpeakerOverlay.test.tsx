@@ -76,12 +76,13 @@ test("renders a pill per member with speaking/muted state reflected", () => {
   expect(bobPill).toHaveAttribute("data-muted", "true");
 });
 
-test("the overlay snaps to the persisted corner", () => {
+test("the overlay uses the persisted free placement", () => {
   const members = mockMembers();
   render(<SpeakerOverlay members$={constant(members)} />);
 
   const overlay = screen.getByTestId("speaker_overlay");
-  // Default alignment set in settings.ts
-  expect(overlay).toHaveAttribute("data-block-alignment", "end");
-  expect(overlay).toHaveAttribute("data-inline-alignment", "start");
+  // Default placement set in settings.ts preserves the previous bottom-left
+  // snapped-corner position, but the value is now continuous.
+  expect(overlay).toHaveAttribute("data-overlay-x", "0");
+  expect(overlay).toHaveAttribute("data-overlay-y", "1");
 });

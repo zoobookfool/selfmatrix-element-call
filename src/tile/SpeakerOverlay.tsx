@@ -5,9 +5,17 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { type FC, type ReactNode, useCallback, useRef } from "react";
+import {
+  type CSSProperties,
+  type FC,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import classNames from "classnames";
-import { useDrag } from "@use-gesture/react";
+import { type EventTypes, type Handler, useDrag } from "@use-gesture/react";
 import { useTranslation } from "react-i18next";
 import {
   ContextMenu,
@@ -28,7 +36,11 @@ import { type Behavior } from "../state/Behavior";
 import { useBehavior } from "../useBehavior";
 import { type UserMediaViewModel } from "../state/media/UserMediaViewModel";
 import { type RemoteUserMediaViewModel } from "../state/media/RemoteUserMediaViewModel";
-import { speakerOverlayAlignment, useSetting } from "../settings/settings";
+import {
+  type SpeakerOverlayPosition,
+  speakerOverlayPosition,
+  useSetting,
+} from "../settings/settings";
 import { Slider } from "../Slider";
 
 interface SpeakerPillProps {
@@ -139,6 +151,26 @@ const SpeakerPill: FC<SpeakerPillProps> = ({ vm }) => {
 
 SpeakerPill.displayName = "SpeakerPill";
 
+type DragState = Parameters<Handler<"drag", EventTypes["drag"]>>[0];
+
+interface SpeakerOverlayStyle extends CSSProperties {
+  "--speaker-overlay-x": number;
+  "--speaker-overlay-y": number;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalisePosition(
+  position: SpeakerOverlayPosition,
+): SpeakerOverlayPosition {
+  return {
+    x: Number.isFinite(position.x) ? clamp(position.x, 0, 1) : 0,
+    y: Number.isFinite(position.y) ? clamp(position.y, 0, 1) : 1,
+  };
+}
+
 interface Props {
   /**
    * The list of participants' user media to show pills for, including the
@@ -156,38 +188,55 @@ interface Props {
  * Discord StreamKit-style overlay shown on top of a watched screen share
  * (SelfMatrix Slice 5). Displays an avatar + name pill for every participant
  * in the call, highlighting whoever is currently speaking and flagging
- * anyone who is muted. The whole overlay can be dragged to snap to any of
- * the four corners of the tile; the chosen corner is persisted so it's
- * remembered across calls.
+ * anyone who is muted. The whole overlay can be freely dragged around the
+ * tile; the chosen placement is persisted so it's remembered across calls.
  */
 export const SpeakerOverlay: FC<Props> = ({ members$, focusable = true }) => {
   const members = useBehavior(members$);
-  const [alignment, setAlignment] = useSetting(speakerOverlayAlignment);
+  const [position, setPosition] = useSetting(speakerOverlayPosition);
+  const [draftPosition, setDraftPosition] = useState(() =>
+    normalisePosition(position),
+  );
   const ref = useRef<HTMLDivElement | null>(null);
+  const dragOffset = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    setDraftPosition(normalisePosition(position));
+  }, [position]);
 
   const onDrag = useCallback(
-    ({
-      last,
-      xy: [x, y],
-    }: Parameters<Parameters<typeof useDrag>[0]>[0]): void => {
-      // Only commit the new corner once the drag gesture has ended, so the
-      // overlay doesn't jump around mid-drag (it stays under the cursor via
-      // native browser dragging feedback is not used here; instead we just
-      // snap on release, matching the lightweight feel of GridLayout's
-      // spotlight alignment drag).
-      if (!last) return;
-      const container = ref.current?.parentElement;
-      if (!container) return;
+    ({ first, last, xy: [x, y] }: DragState): void => {
+      const overlay = ref.current;
+      const container = overlay?.parentElement;
+      if (!overlay || !container) return;
+
       const bounds = container.getBoundingClientRect();
+      const overlayBounds = overlay.getBoundingClientRect();
+      const maxX = Math.max(bounds.width - overlayBounds.width, 0);
+      const maxY = Math.max(bounds.height - overlayBounds.height, 0);
       if (bounds.width === 0 || bounds.height === 0) return;
-      const xRatio = (x - bounds.left) / bounds.width;
-      const yRatio = (y - bounds.top) / bounds.height;
-      setAlignment({
-        inline: xRatio < 0.5 ? "start" : "end",
-        block: yRatio < 0.5 ? "start" : "end",
-      });
+
+      if (first || dragOffset.current === null) {
+        dragOffset.current = {
+          x: x - overlayBounds.left,
+          y: y - overlayBounds.top,
+        };
+      }
+
+      const nextLeft = clamp(x - bounds.left - dragOffset.current.x, 0, maxX);
+      const nextTop = clamp(y - bounds.top - dragOffset.current.y, 0, maxY);
+      const nextPosition = {
+        x: maxX === 0 ? 0 : nextLeft / maxX,
+        y: maxY === 0 ? 0 : nextTop / maxY,
+      };
+
+      setDraftPosition(nextPosition);
+      if (last) {
+        setPosition(nextPosition);
+        dragOffset.current = null;
+      }
     },
-    [setAlignment],
+    [setPosition],
   );
 
   useDrag(onDrag, { target: ref, filterTaps: true });
@@ -199,8 +248,14 @@ export const SpeakerOverlay: FC<Props> = ({ members$, focusable = true }) => {
       ref={ref}
       className={styles.overlay}
       data-testid="speaker_overlay"
-      data-block-alignment={alignment.block}
-      data-inline-alignment={alignment.inline}
+      data-overlay-x={draftPosition.x}
+      data-overlay-y={draftPosition.y}
+      style={
+        {
+          "--speaker-overlay-x": draftPosition.x,
+          "--speaker-overlay-y": draftPosition.y,
+        } as SpeakerOverlayStyle
+      }
       tabIndex={focusable ? undefined : -1}
     >
       {members.map((vm) => (

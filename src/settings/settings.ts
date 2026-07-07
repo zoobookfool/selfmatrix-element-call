@@ -202,6 +202,22 @@ export const speakerOverlayAlignment = new Setting<Alignment>(
 );
 
 /**
+ * Free placement for the SelfMatrix speaker overlay. `x` and `y` are
+ * normalised anchor positions inside the media tile: 0 is the start/top edge,
+ * 1 is the end/bottom edge. Defaults to bottom-left to preserve the previous
+ * snapped-corner behaviour.
+ */
+export interface SpeakerOverlayPosition {
+  x: number;
+  y: number;
+}
+
+export const speakerOverlayPosition = new Setting<SpeakerOverlayPosition>(
+  "speaker-overlay-position",
+  { x: 0, y: 1 },
+);
+
+/**
  * Which edge of the spotlight-landscape layout the mini-tile strip (the
  * scrolling rail of participant tiles) is docked to (SelfMatrix Slice 6b).
  * Defaults to "bottom" to match Discord's layout convention, which differs

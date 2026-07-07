@@ -25,6 +25,13 @@ import {
 import { type ObservableScope } from "../ObservableScope";
 import { createVolumeControls, type VolumeControls } from "../VolumeControls";
 import { observeTrackReference$ } from "../observeTrackReference";
+import { observeInboundRtpStreamStats$ } from "./observeRtpStreamStats";
+
+export interface ScreenShareQualityInfo {
+  width?: number;
+  height?: number;
+  fps?: number;
+}
 
 export interface RemoteScreenShareViewModel
   extends BaseScreenShareViewModel, VolumeControls {
@@ -44,6 +51,12 @@ export interface RemoteScreenShareViewModel
    * to avoid spending bandwidth on streams nobody is looking at.
    */
   watching$: Behavior<boolean>;
+  /**
+   * The quality the local client is actually receiving for this screen share.
+   * This is derived from inbound RTP stats, so it reflects the current stream
+   * rather than only the sender's requested preset.
+   */
+  qualityInfo$: Behavior<ScreenShareQualityInfo | undefined>;
   /**
    * Sets whether the local user wants to watch this remote screen share.
    * Toggling this subscribes/unsubscribes the underlying LiveKit tracks.
@@ -114,6 +127,23 @@ function applyVideoQuality(
       e,
     );
   }
+}
+
+function toQualityInfo(
+  stats: RTCInboundRtpStreamStats | undefined,
+): ScreenShareQualityInfo | undefined {
+  const width =
+    typeof stats?.frameWidth === "number" ? stats.frameWidth : undefined;
+  const height =
+    typeof stats?.frameHeight === "number" ? stats.frameHeight : undefined;
+  const fps =
+    typeof stats?.framesPerSecond === "number"
+      ? stats.framesPerSecond
+      : undefined;
+  if (width === undefined && height === undefined && fps === undefined) {
+    return undefined;
+  }
+  return { width, height, fps };
 }
 
 export function createRemoteScreenShare(
@@ -204,6 +234,16 @@ export function createRemoteScreenShare(
       ),
     ),
     watching$,
+    qualityInfo$: scope.behavior(
+      inputs.participant$.pipe(
+        switchMap((p) =>
+          p
+            ? observeInboundRtpStreamStats$(p, Track.Source.ScreenShare)
+            : of(undefined),
+        ),
+        map(toQualityInfo),
+      ),
+    ),
     setWatching: (watching: boolean): void => {
       watchingSubject$.next(watching);
     },

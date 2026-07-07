@@ -1,0 +1,25 @@
+/*
+Copyright 2026 Element Creations Ltd.
+
+SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE in the repository root for full details.
+*/
+
+.badge {
+  grid-area: content;
+  justify-self: end;
+  align-self: start;
+  margin: var(--cpd-space-3x);
+  padding: 2px var(--cpd-space-2x);
+  border-radius: var(--cpd-radius-pill-effect);
+  background: rgba(from var(--cpd-color-bg-canvas-default) r g b / 0.78);
+  box-shadow: var(--small-drop-shadow);
+  color: var(--cpd-color-text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: 0;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}

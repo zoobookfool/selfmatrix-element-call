@@ -47,6 +47,7 @@ import { useObservableEagerState } from "observable-hooks";
 import styles from "./GridTile.module.css";
 import { Slider } from "../Slider";
 import { MediaView } from "./MediaView";
+import { ScreenShareQualityBadge } from "./ScreenShareQualityBadge";
 import { useLatest } from "../useLatest";
 import { type GridTileViewModel } from "../state/TileViewModel";
 import { useMergedRefs } from "../useMergedRefs";
@@ -577,7 +578,12 @@ const ScreenShareTile: FC<ScreenShareTileProps> = ({
           </div>
         )
       }
-      overlay={speakerOverlay}
+      overlay={
+        <>
+          {speakerOverlay}
+          <ScreenShareQualityBadge vm={vm} />
+        </>
+      }
       {...props}
     />
   );

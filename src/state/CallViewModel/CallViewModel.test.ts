@@ -123,6 +123,7 @@ export interface GridLayoutSummary {
   type: "grid";
   spotlight?: string[];
   grid: string[];
+  strip?: string[];
 }
 
 export interface SpotlightLandscapeLayoutSummary {
@@ -179,12 +180,19 @@ function summarizeLayout$(l$: Observable<Layout>): Observable<LayoutSummary> {
             [
               l.spotlight?.media$ ?? constant(undefined),
               ...l.grid.map((vm) => vm.media$),
+              ...(l.strip?.map((vm) => vm.media$) ?? []),
             ],
-            (spotlight, ...grid) => ({
-              type: l.type,
-              spotlight: spotlight?.map((vm) => vm.id),
-              grid: grid.map((vm) => vm.id),
-            }),
+            (spotlight, ...media) => {
+              const grid = media.slice(0, l.grid.length);
+              const strip = media.slice(l.grid.length);
+              const hasStrip = l.strip !== undefined && l.strip.length > 0;
+              return {
+                type: l.type,
+                spotlight: spotlight?.map((vm) => vm.id),
+                grid: grid.map((vm) => vm.id),
+                ...(hasStrip ? { strip: strip.map((vm) => vm.id) } : {}),
+              };
+            },
           );
         case "spotlight-landscape":
         case "spotlight-portrait":
@@ -469,6 +477,56 @@ describe.each([
                   `${bobId}:0`,
                   `${localId}:0:screen-share`,
                 ],
+              },
+            },
+          );
+        },
+      );
+    });
+  });
+
+  test("watched screen shares suppress the emphasis mini tile strip", () => {
+    // SelfMatrix: once any screen share is being watched, the stream itself
+    // plus the speaker overlay carry the call context. The old emphasis
+    // mini-strip would duplicate speaker tiles and diverge from the Discord
+    // mock, so emphasis still narrows the grid but does not create a strip.
+    withTestScheduler(({ behavior, schedule, expectObservable }) => {
+      const sharingInputMarbles = "y";
+      const expectedLayoutMarbles = "ab";
+
+      withCallViewModel(
+        {
+          remoteParticipants$: constant([aliceParticipant, bobParticipant]),
+          rtcMembers$: constant([localRtcMember, aliceRtcMember, bobRtcMember]),
+          sharingScreen: new Map([
+            [localParticipant, behavior(sharingInputMarbles, yesNo)],
+          ]),
+        },
+        (vm) => {
+          schedule("-e", {
+            e: () => {
+              vm.setEmphasisEnabled(true);
+              vm.toggleEmphasized(`${localId}:0:screen-share`);
+            },
+          });
+
+          expectObservable(summarizeLayout$(vm.layout$)).toBe(
+            expectedLayoutMarbles,
+            {
+              a: {
+                type: "grid",
+                spotlight: undefined,
+                grid: [
+                  `${localId}:0`,
+                  `${aliceId}:0`,
+                  `${bobId}:0`,
+                  `${localId}:0:screen-share`,
+                ],
+              },
+              b: {
+                type: "grid",
+                spotlight: undefined,
+                grid: [`${localId}:0:screen-share`],
               },
             },
           );

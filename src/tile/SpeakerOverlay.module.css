@@ -11,6 +11,18 @@ overlay never steals clicks meant for the video or the tile's buttons. */
 .overlay {
   grid-area: content;
   position: relative;
+  justify-self: start;
+  align-self: start;
+  inline-size: max-content;
+  block-size: max-content;
+  max-inline-size: calc(100% - var(--cpd-space-6x));
+  max-block-size: calc(100% - var(--cpd-space-6x));
+  inset-inline-start: calc(var(--speaker-overlay-x) * 100%);
+  inset-block-start: calc(var(--speaker-overlay-y) * 100%);
+  transform: translate(
+    calc(var(--speaker-overlay-x) * -100%),
+    calc(var(--speaker-overlay-y) * -100%)
+  );
   pointer-events: none;
   display: flex;
   flex-direction: column;
@@ -19,29 +31,11 @@ overlay never steals clicks meant for the video or the tile's buttons. */
   padding: var(--cpd-space-3x);
   touch-action: none;
   cursor: grab;
+  will-change: transform, inset-inline-start, inset-block-start;
 }
 
 .overlay:active {
   cursor: grabbing;
-}
-
-.overlay[data-block-alignment="start"] {
-  align-self: start;
-}
-
-.overlay[data-block-alignment="end"] {
-  align-self: end;
-}
-
-.overlay[data-inline-alignment="start"] {
-  inset-inline-start: 0;
-  align-items: flex-start;
-}
-
-.overlay[data-inline-alignment="end"] {
-  inset-inline-end: 0;
-  margin-inline-start: auto;
-  align-items: flex-end;
 }
 
 .pill {

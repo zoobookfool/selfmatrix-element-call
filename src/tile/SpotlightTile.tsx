@@ -63,6 +63,7 @@ import { Slider } from "../Slider";
 import { platform } from "../Platform";
 import { type RingingMediaViewModel } from "../state/media/RingingMediaViewModel";
 import { usePopoutScreenShare } from "./popout/usePopoutScreenShare";
+import { ScreenShareQualityBadge } from "./ScreenShareQualityBadge";
 
 interface SpotlightItemBaseProps {
   ref?: Ref<HTMLDivElement>;
@@ -165,7 +166,19 @@ const SpotlightScreenShareItem: FC<SpotlightScreenShareItemProps> = ({
   vm,
   ...props
 }) => {
-  return <MediaView videoFit="contain" mirror={false} {...props} />;
+  return (
+    <MediaView
+      videoFit="contain"
+      mirror={false}
+      {...props}
+      overlay={
+        <>
+          {props.overlay}
+          <ScreenShareQualityBadge vm={vm} />
+        </>
+      }
+    />
+  );
 };
 
 interface SpotlightRemoteScreenShareItemProps extends SpotlightMemberMediaItemBaseProps {
