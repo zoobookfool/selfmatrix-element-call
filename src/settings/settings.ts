@@ -11,7 +11,6 @@ import { BehaviorSubject } from "rxjs";
 import { PosthogAnalytics } from "../analytics/PosthogAnalytics";
 import { type Behavior } from "../state/Behavior";
 import { useBehavior } from "../useBehavior";
-import type { Alignment } from "../state/layout-types";
 
 export class Setting<T> {
   public constructor(
@@ -192,16 +191,6 @@ export const customLivekitUrl = new Setting<string | null>(
 );
 
 /**
- * Corner (in the SpotlightTile's screen share) that the SelfMatrix speaker
- * overlay (Slice 5, Discord StreamKit-style) is snapped to. Persisted across
- * sessions like the other alignment-driven layout settings.
- */
-export const speakerOverlayAlignment = new Setting<Alignment>(
-  "speaker-overlay-alignment",
-  { block: "end", inline: "start" },
-);
-
-/**
  * Free placement for the SelfMatrix speaker overlay. `x` and `y` are
  * normalised anchor positions inside the media tile: 0 is the start/top edge,
  * 1 is the end/bottom edge. Defaults to bottom-left to preserve the previous
@@ -212,9 +201,23 @@ export interface SpeakerOverlayPosition {
   y: number;
 }
 
+function legacySpeakerOverlayPosition(): SpeakerOverlayPosition {
+  const stored = localStorage.getItem("matrix-setting-speaker-overlay-alignment");
+  if (stored === null) return { x: 0, y: 1 };
+  try {
+    const alignment = JSON.parse(stored) as { block?: unknown; inline?: unknown };
+    return {
+      x: alignment.inline === "end" ? 1 : 0,
+      y: alignment.block === "start" ? 0 : 1,
+    };
+  } catch {
+    return { x: 0, y: 1 };
+  }
+}
+
 export const speakerOverlayPosition = new Setting<SpeakerOverlayPosition>(
   "speaker-overlay-position",
-  { x: 0, y: 1 },
+  legacySpeakerOverlayPosition(),
 );
 
 /**
