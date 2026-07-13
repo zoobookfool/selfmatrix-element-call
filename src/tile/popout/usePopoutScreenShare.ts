@@ -38,6 +38,16 @@ interface PopoutScreenShare {
 }
 
 /**
+ * The browser implementation relies on a same-origin `window.open()` child.
+ * SelfMatrix native deliberately denies renderer-created windows; its secure
+ * stream-only popout needs a separate host contract. Hide the dead control
+ * there until that contract exists, while retaining the working web feature.
+ */
+export function canUseBrowserStreamPopout(): boolean {
+  return window.selfmatrixCallWindow === undefined;
+}
+
+/**
  * Sets up the video element inside a freshly opened popout window: sets the
  * window title, strips the document down to a full-bleed black background,
  * and inserts a <video> element sized to fill the window.
@@ -76,6 +86,7 @@ export function usePopoutScreenShare(
   vm: MediaViewModel | undefined,
 ): PopoutScreenShare {
   const isScreenShare = vm?.type === "screen share";
+  const canPopout = isScreenShare && canUseBrowserStreamPopout();
   // Hooks must be called unconditionally. When this media isn't a screen
   // share (or there is no media at all) we fall back to Behaviors that never
   // emit anything meaningful, so the popout/video state stays inert.
@@ -105,7 +116,7 @@ export function usePopoutScreenShare(
   }, []);
 
   const popout = useCallback(() => {
-    if (!isScreenShare) return;
+    if (!canPopout) return;
 
     // Re-use the existing popout window if the user clicks the button again.
     if (popoutWindowRef.current && !popoutWindowRef.current.closed) {
@@ -135,7 +146,7 @@ export function usePopoutScreenShare(
       track.attach(videoEl);
       attachedTrackRef.current = track;
     }
-  }, [isScreenShare, vm, displayName, video]);
+  }, [canPopout, vm, displayName, video]);
 
   // Keep the popout window's attached track in sync with the current video
   // track, and close the popout if the screen share stops.
@@ -180,5 +191,5 @@ export function usePopoutScreenShare(
   // Clean up on unmount.
   useEffect(() => cleanUp, [cleanUp]);
 
-  return { popout: isScreenShare ? popout : null, popoutActive };
+  return { popout: canPopout ? popout : null, popoutActive };
 }
