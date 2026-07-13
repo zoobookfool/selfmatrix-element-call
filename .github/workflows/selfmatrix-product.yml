@@ -34,8 +34,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-pnpmfile
 
+      # pnpm lint は tsc + eslint + knip のみで、upstream の lint.yaml が個別に走らせる
+      # prettier / i18n を含まない。i18n はここで補完する (全体レビュー 2026-07-12 の指摘対応)。
+      # prettier:check は意図的に入れない: この fork は v0.20.1 ベース固定で、formatter の
+      # バージョン乖離により `prettier -c .` が 400+ ファイルで fail する。通すには全面
+      # リフォーマットが必要で upstream merge を汚染するため、fork 差分最小方針を優先する。
       - name: Lint
         run: pnpm lint
+
+      - name: i18n consistency
+        run: pnpm i18n:check
 
       - name: Unit tests
         run: pnpm test:unit -- --run
