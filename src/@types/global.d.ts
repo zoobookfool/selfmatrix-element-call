@@ -10,6 +10,23 @@ import { type setLogLevel as setLKLogLevel } from "livekit-client";
 import type { DurationFormat as PolyfillDurationFormat } from "@formatjs/intl-durationformat";
 import { type Controls } from "../controls";
 
+export interface SelfmatrixCallWindowState {
+  placement: "main" | "window" | "none";
+  alwaysOnTop: boolean;
+  fullScreen: boolean;
+}
+
+export interface SelfmatrixCallWindowBridge {
+  getState: () => Promise<SelfmatrixCallWindowState>;
+  popout: () => Promise<SelfmatrixCallWindowState>;
+  popin: () => Promise<SelfmatrixCallWindowState>;
+  toggleAlwaysOnTop: () => Promise<SelfmatrixCallWindowState>;
+  toggleFullscreen: () => Promise<SelfmatrixCallWindowState>;
+  onStateChange: (
+    listener: (state: SelfmatrixCallWindowState) => void,
+  ) => () => void;
+}
+
 declare global {
   interface Document {
     // Safari only supports this prefixed, so tell the type system about it
@@ -20,6 +37,7 @@ declare global {
   interface Window {
     controls: Controls;
     setLKLogLevel: typeof setLKLogLevel;
+    selfmatrixCallWindow?: SelfmatrixCallWindowBridge;
   }
 
   interface HTMLElement {

@@ -18,6 +18,7 @@ import LogoMark from "../icons/LogoMark.svg?react";
 import LogoType from "../icons/LogoType.svg?react";
 import {
   EndCallButton,
+  CallAudioButton,
   MicButton,
   VideoButton,
   SettingsButton,
@@ -34,6 +35,8 @@ import {
 import { ShareScreenMenuButton } from "./ShareScreenMenuButton";
 import { type ViewModel } from "../state/ViewModel";
 import { useBehavior } from "../useBehavior";
+import { muteAllAudio, useSetting } from "../settings/settings";
+import { NativeCallWindowControls } from "./NativeCallWindowControls";
 
 export interface AudioOutputSwitcher {
   targetOutput: string;
@@ -164,6 +167,7 @@ export const CallFooter: FC<FooterProps> = ({ ref, children, vm }) => {
   const videoBlurEnabled = useBehavior(vm.videoBlurEnabled$);
   const buttonSize = useBehavior(vm.buttonSize$);
   const showLogo = useBehavior(vm.showLogo$);
+  const [allAudioMuted, setAllAudioMuted] = useSetting(muteAllAudio);
 
   const buttons: JSX.Element[] = [];
 
@@ -242,6 +246,18 @@ export const CallFooter: FC<FooterProps> = ({ ref, children, vm }) => {
     }
   }
 
+  if (layoutMode !== undefined) {
+    buttons.push(
+      <CallAudioButton
+        size={buttonSize}
+        key="call_audio"
+        enabled={!allAudioMuted}
+        onClick={() => setAllAudioMuted(!allAudioMuted)}
+        data-testid="incall_sound"
+      />,
+    );
+  }
+
   if (toggleScreenSharing !== undefined) {
     buttons.push(
       <ShareScreenMenuButton
@@ -267,6 +283,12 @@ export const CallFooter: FC<FooterProps> = ({ ref, children, vm }) => {
   }, [audioOutputSwitcher, buttonSize]);
 
   if (audioOutputButton) buttons.push(audioOutputButton);
+
+  if (layoutMode !== undefined) {
+    buttons.push(
+      <NativeCallWindowControls key="native_window" location="primary" />,
+    );
+  }
 
   if (hangup)
     buttons.push(
@@ -317,9 +339,10 @@ export const CallFooter: FC<FooterProps> = ({ ref, children, vm }) => {
         {(showLogo || debugTileLayout) && logoDebugContainer}
       </div>
       {!hideControls && <div className={styles.buttons}>{buttons}</div>}
-      {!hideControls && setLayoutMode && layoutMode && (
+      {!hideControls && layoutMode !== undefined && (
         <div className={styles.layout}>
-          {layoutMode === "grid" && setEmphasisEnabled && (
+          <NativeCallWindowControls location="secondary" />
+          {setLayoutMode && layoutMode === "grid" && setEmphasisEnabled && (
             <div className={styles.emphasisToggle}>
               <CheckboxInput
                 id="emphasisToggleInput"
@@ -332,18 +355,20 @@ export const CallFooter: FC<FooterProps> = ({ ref, children, vm }) => {
               </label>
             </div>
           )}
-          <Switch<"spotlight", "grid">
-            name="layoutMode"
-            aria-label={t("layout_switch_label")}
-            leftLabel={t("layout_spotlight_label")}
-            leftValue="spotlight"
-            leftIcon={SpotlightIcon}
-            rightLabel={t("layout_grid_label")}
-            rightValue="grid"
-            rightIcon={GridIcon}
-            value={layoutMode}
-            onChange={setLayoutMode}
-          />
+          {setLayoutMode && layoutMode && (
+            <Switch<"spotlight", "grid">
+              name="layoutMode"
+              aria-label={t("layout_switch_label")}
+              leftLabel={t("layout_spotlight_label")}
+              leftValue="spotlight"
+              leftIcon={SpotlightIcon}
+              rightLabel={t("layout_grid_label")}
+              rightValue="grid"
+              rightIcon={GridIcon}
+              value={layoutMode}
+              onChange={setLayoutMode}
+            />
+          )}
         </div>
       )}
     </div>

@@ -10,7 +10,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TooltipProvider } from "@vector-im/compound-web";
 
-import { MicButton, VideoButton } from "./Button";
+import { CallAudioButton, MicButton, VideoButton } from "./Button";
 
 describe("MicButton", () => {
   test("calls onClick when not busy", async () => {
@@ -109,5 +109,23 @@ describe("VideoButton", () => {
 
     await user.click(button);
     expect(onClick).not.toHaveBeenCalled();
+  });
+});
+
+describe("CallAudioButton", () => {
+  test("exposes incoming audio as a switch", async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    render(
+      <TooltipProvider>
+        <CallAudioButton enabled={true} onClick={onClick} />
+      </TooltipProvider>,
+    );
+
+    const button = screen.getByRole("switch");
+    expect(button).toHaveAttribute("aria-checked", "true");
+    await user.click(button);
+
+    expect(onClick).toHaveBeenCalledOnce();
   });
 });

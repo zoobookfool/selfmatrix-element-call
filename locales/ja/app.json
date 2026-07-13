@@ -163,7 +163,16 @@
   "login_title": "ログイン",
   "microphone_off": "マイクオフ",
   "microphone_on": "マイクオン",
+  "mute_call_audio_button_label": "通話音声をミュート",
   "mute_microphone_button_label": "ミュート",
+  "native_call_window": {
+    "enter_fullscreen": "全画面表示にする",
+    "exit_fullscreen": "全画面表示を終了",
+    "pin": "通話ウィンドウを最前面に固定",
+    "popin": "SelfMatrix に戻す",
+    "popout": "通話を別ウィンドウで開く",
+    "unpin": "最前面への固定を解除"
+  },
   "participant_count_one": "{{count, number}}",
   "participant_count_other": "{{count, number}}",
   "qr_code": "QR コード",
@@ -261,6 +270,7 @@
   "unauthenticated_view_body": "アカウントがありませんか？ <2>アカウントを作成</2>",
   "unauthenticated_view_login_button": "アカウントにログイン",
   "unauthenticated_view_ssla_caption": "「Go」をクリックすることで、当社の<2>ソフトウェアおよびサービス利用許諾契約 (SSLA)</2>に同意したものとみなされます",
+  "unmute_call_audio_button_label": "通話音声のミュートを解除",
   "unmute_microphone_button_label": "マイクのミュート解除",
   "version": "バージョン：{{version}}",
   "video_tile": {

@@ -84,6 +84,12 @@ Please see LICENSE in the repository root for full details.
   gap: var(--cpd-space-3x);
 }
 
+.nativeWindowControls {
+  display: flex;
+  align-items: center;
+  gap: var(--cpd-space-2x);
+}
+
 /*
 SelfMatrix (UI design notes v1.4, agreement 2/3): grid mode's emphasis
 selection toggle, shown next to the layout switch (only while in grid mode).

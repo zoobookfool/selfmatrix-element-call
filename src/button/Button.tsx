@@ -63,6 +63,35 @@ export const MicButton: FC<MicButtonProps> = ({ enabled, busy, ...props }) => {
   );
 };
 
+interface CallAudioButtonProps extends ComponentPropsWithoutRef<"button"> {
+  enabled: boolean;
+  size?: "md" | "lg";
+}
+
+/** Mutes or restores all incoming call audio without changing the microphone. */
+export const CallAudioButton: FC<CallAudioButtonProps> = ({
+  enabled,
+  ...props
+}) => {
+  const { t } = useTranslation();
+  const label = enabled
+    ? t("mute_call_audio_button_label")
+    : t("unmute_call_audio_button_label");
+
+  return (
+    <Tooltip label={label}>
+      <CpdButton
+        iconOnly
+        Icon={enabled ? VolumeOnSolidIcon : VolumeOffSolidIcon}
+        kind={enabled ? "secondary" : "primary"}
+        role="switch"
+        aria-checked={enabled}
+        {...props}
+      />
+    </Tooltip>
+  );
+};
+
 interface VideoButtonProps extends ComponentPropsWithoutRef<"button"> {
   enabled: boolean;
   busy?: boolean;

@@ -163,7 +163,16 @@
   "login_title": "Login",
   "microphone_off": "Microphone off",
   "microphone_on": "Microphone on",
+  "mute_call_audio_button_label": "Mute incoming call audio",
   "mute_microphone_button_label": "Mute microphone",
+  "native_call_window": {
+    "enter_fullscreen": "Enter full screen",
+    "exit_fullscreen": "Exit full screen",
+    "pin": "Keep call window on top",
+    "popin": "Return to SelfMatrix",
+    "popout": "Open call in a separate window",
+    "unpin": "Stop keeping call window on top"
+  },
   "participant_count_one": "{{count, number}}",
   "participant_count_other": "{{count, number}}",
   "qr_code": "QR Code",
@@ -261,6 +270,7 @@
   "unauthenticated_view_body": "Not registered yet? <2>Create an account</2>",
   "unauthenticated_view_login_button": "Login to your account",
   "unauthenticated_view_ssla_caption": "By clicking \"Go\", you agree to our <2>Software and Services License Agreement (SSLA)</2>",
+  "unmute_call_audio_button_label": "Restore incoming call audio",
   "unmute_microphone_button_label": "Unmute microphone",
   "version": "{{productName}} version: {{version}}",
   "video_tile": {
