@@ -77,8 +77,8 @@ export const MediaMuteAndSwitchButton: FC<MediaMuteAndSwitchButtonProps> = ({
   const devices = useMediaDevices();
 
   useEffect(() => {
-    if (menuOpen) devices.requestDeviceNames(); // No-op after the first call
-  }, [menuOpen, devices]);
+    if (menuOpen) devices.requestDeviceNames(iconsAndLabels); // No-op after the first call
+  }, [menuOpen, devices, iconsAndLabels]);
 
   let button;
   let toggles: { label: string; enabled: boolean; id: string }[] = [];

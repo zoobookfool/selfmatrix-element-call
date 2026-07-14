@@ -131,10 +131,13 @@ export const SettingsModal: FC<Props> = ({
     );
   };
 
+  const { controlledAudioDevices, disableVideo } = useUrlParams();
   const devices = useMediaDevices();
   useEffect(() => {
-    if (open) devices.requestDeviceNames(); // No-op after the first call
-  }, [open, devices]);
+    if (!open) return;
+    if (tab === "audio") devices.requestDeviceNames("audio");
+    if (tab === "video" && !disableVideo) devices.requestDeviceNames("video");
+  }, [open, tab, devices, disableVideo]);
 
   const [soundVolume, setSoundVolume] = useSetting(soundEffectVolumeSetting);
   const [soundVolumeRaw, setSoundVolumeRaw] = useState(soundVolume);
@@ -147,7 +150,6 @@ export const SettingsModal: FC<Props> = ({
   // a single device. These are called "headset" or "speaker" (or similar) but contain both input and output.
   // On EC, we decided that it is less confusing for the user if they see those options in the output section
   // rather than the input section.
-  const { controlledAudioDevices } = useUrlParams();
   // If we are on iOS we will show a button to open the native audio device picker.
   const iosDeviceMenu = useBehavior(iosDeviceMenu$);
 
@@ -253,7 +255,8 @@ export const SettingsModal: FC<Props> = ({
     ),
   };
 
-  const tabs = [audioTab, videoTab];
+  const tabs = [audioTab];
+  if (!disableVideo) tabs.push(videoTab);
   if (widget === null) tabs.push(profileTab);
   tabs.push(preferencesTab);
   if (isRageshakeAvailable || import.meta.env.VITE_PACKAGE === "full") {

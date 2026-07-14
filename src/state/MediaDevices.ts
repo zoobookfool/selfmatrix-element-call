@@ -106,6 +106,8 @@ export interface MediaDevice<Label, Selected> {
   select(id: string): void;
 }
 
+export type DeviceNamesRequest = "audio" | "video" | "all";
+
 /**
  * An observable that represents if we should display the devices menu for iOS.
  *
@@ -339,15 +341,22 @@ class VideoInput implements MediaDevice<DeviceLabel, SelectedDevice> {
 }
 
 export class MediaDevices {
-  private readonly deviceNamesRequest$ = new Subject<void>();
+  private readonly audioDeviceNamesRequest$ = new Subject<void>();
+  private readonly videoDeviceNamesRequest$ = new Subject<void>();
+
   /**
    * Requests that the media devices be populated with the names of each
    * available device, rather than numbered identifiers. This may invoke a
-   * permissions pop-up, so it should only be called when there is a clear user
-   * intent to view the device list.
+   * permissions pop-up, so callers must request only the media kind that the
+   * user explicitly chose to configure.
    */
-  public requestDeviceNames(): void {
-    this.deviceNamesRequest$.next();
+  public requestDeviceNames(kind: DeviceNamesRequest = "all"): void {
+    if (kind === "audio" || kind === "all") {
+      this.audioDeviceNamesRequest$.next();
+    }
+    if (kind === "video" || kind === "all") {
+      this.videoDeviceNamesRequest$.next();
+    }
   }
 
   // Start using device names as soon as requested. This will cause LiveKit to
@@ -356,14 +365,18 @@ export class MediaDevices {
   // you to do to receive device names in lieu of a more explicit permissions
   // API. This flag never resets to false, because once permissions are granted
   // the first time, the user won't be prompted again until reload of the page.
-  private readonly usingNames$ = this.scope.behavior(
-    this.deviceNamesRequest$.pipe(map(() => true)),
+  private readonly usingAudioNames$ = this.scope.behavior(
+    this.audioDeviceNamesRequest$.pipe(map(() => true)),
+    false,
+  );
+  private readonly usingVideoNames$ = this.scope.behavior(
+    this.videoDeviceNamesRequest$.pipe(map(() => true)),
     false,
   );
   public readonly audioInput: MediaDevice<
     DeviceLabel,
     SelectedAudioInputDevice
-  > = new AudioInput(this.usingNames$, this.scope);
+  > = new AudioInput(this.usingAudioNames$, this.scope);
 
   public readonly audioOutput: MediaDevice<
     AudioOutputDeviceLabel,
@@ -376,11 +389,11 @@ export class MediaDevices {
           getUrlParams().callIntent,
           window.controls,
         )
-      : new IOSControlledAudioOutput(this.usingNames$, this.scope)
-    : new AudioOutput(this.usingNames$, this.scope);
+      : new IOSControlledAudioOutput(this.usingAudioNames$, this.scope)
+    : new AudioOutput(this.usingAudioNames$, this.scope);
 
   public readonly videoInput: MediaDevice<DeviceLabel, SelectedDevice> =
-    new VideoInput(this.usingNames$, this.scope);
+    new VideoInput(this.usingVideoNames$, this.scope);
 
   public constructor(private readonly scope: ObservableScope) {}
 }

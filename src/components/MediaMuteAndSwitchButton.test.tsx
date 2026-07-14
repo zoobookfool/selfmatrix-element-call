@@ -149,7 +149,7 @@ describe("MediaMuteAndSwitchButton", () => {
 
     expect(requestDeviceNames).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Microphone" }));
-    expect(requestDeviceNames).toHaveBeenCalled();
+    expect(requestDeviceNames).toHaveBeenCalledWith("audio");
   });
 
   test("shows numbered devices correctly", async () => {

@@ -182,7 +182,7 @@ export const LobbyView: FC<Props> = ({
       // If we have a video track but no videoInputId,
       // we have to update the available devices. So that we select the first
       // available video input device as the default instead of the `""` id.
-      devices.requestDeviceNames();
+      devices.requestDeviceNames("video");
     }
   }, [devices, videoInputId, videoTrack]);
 
